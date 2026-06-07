@@ -1,9 +1,10 @@
 // npx vitest run integrations/terminal/__tests__/ExecaTerminalProcess.spec.ts
 
 const mockPid = 12345
+// Declared via vi.hoisted so it is available inside the hoisted vi.mock factory.
+const { mockKill } = vitest.hoisted(() => ({ mockKill: vitest.fn() }))
 
 vitest.mock("execa", () => {
-	const mockKill = vitest.fn()
 	const execa = vitest.fn((options: any) => {
 		return (_template: TemplateStringsArray, ...args: any[]) => ({
 			pid: mockPid,
@@ -156,31 +157,32 @@ describe("ExecaTerminalProcess", () => {
 			killSpy.mockRestore()
 		})
 
+		it("emits exitCode 137 (SIGKILL) on abort", async () => {
+			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => true)
+			const completeSpy = vitest.fn()
+			terminalProcess.on("shell_execution_complete", completeSpy)
+
+			const runPromise = terminalProcess.run("sleep 30")
+			await Promise.resolve()
+			terminalProcess.abort()
+			await runPromise
+
+			expect(completeSpy).toHaveBeenCalledWith({ exitCode: 137, signalName: "SIGKILL" })
+			killSpy.mockRestore()
+		})
+
 		it("falls back to subprocess.kill when process group kill throws", async () => {
 			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => {
 				throw new Error("ESRCH")
 			})
-			const execaMock = vitest.mocked(execa)
-			// Grab the mock subprocess kill function after run starts
-			let subprocessKill: ReturnType<typeof vitest.fn> | undefined
 
 			const runPromise = terminalProcess.run("sleep 30")
 			await Promise.resolve()
-
-			// Reach into the mock to capture the subprocess kill fn
-			const calls = execaMock.mock.results
-			if (calls.length > 0) {
-				const taggedFn = calls[0].value as any
-				subprocessKill = taggedFn?.kill
-			}
-
 			terminalProcess.abort()
 			await runPromise
 
-			// process group kill failed, subprocess.kill should have been called
-			if (subprocessKill) {
-				expect(subprocessKill).toHaveBeenCalledWith("SIGKILL")
-			}
+			// process.kill threw, so the fallback subprocess.kill must have been called
+			expect(mockKill).toHaveBeenCalledWith("SIGKILL")
 			killSpy.mockRestore()
 		})
 

@@ -82,14 +82,19 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 			}
 
 			if (this.aborted) {
-				try {
-					await this.subprocess
-				} catch (error) {
-					// Expected: process was killed by abort(); swallow the error.
+					try {
+						await this.subprocess
+					} catch (error) {
+						// Expected: process was killed by abort(); swallow the error.
+					}
+	
+					// emit signal 128 + 9 (SIGKILL) to match conventional shell exit code so
+					// the front-end correctly detects a non-normal exit
+					this.emit("shell_execution_complete", { exitCode: 137, signalName: "SIGKILL" })
+					return
 				}
-			}
-
-			this.emit("shell_execution_complete", { exitCode: 0 })
+	
+				this.emit("shell_execution_complete", { exitCode: 0 })
 		} catch (error) {
 			if (error instanceof ExecaError) {
 				console.error(`[ExecaTerminalProcess#run] shell execution error: ${error.message}`)
