@@ -96,7 +96,11 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 	
 				this.emit("shell_execution_complete", { exitCode: 0 })
 		} catch (error) {
-			if (error instanceof ExecaError) {
+			// If abort() fired and the stream threw before the loop checked this.aborted,
+			// treat it as a SIGKILL exit rather than a generic error.
+			if (this.aborted) {
+				this.emit("shell_execution_complete", { exitCode: 137, signalName: "SIGKILL" })
+			} else if (error instanceof ExecaError) {
 				console.error(`[ExecaTerminalProcess#run] shell execution error: ${error.message}`)
 				this.emit("shell_execution_complete", { exitCode: error.exitCode ?? 0, signalName: error.signal })
 			} else {

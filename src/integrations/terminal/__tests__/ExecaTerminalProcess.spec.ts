@@ -1,17 +1,18 @@
 // npx vitest run integrations/terminal/__tests__/ExecaTerminalProcess.spec.ts
 
 const mockPid = 12345
-// Declared via vi.hoisted so it is available inside the hoisted vi.mock factory.
-const { mockKill } = vitest.hoisted(() => ({ mockKill: vitest.fn() }))
+// Declared via vi.hoisted so they are available inside the hoisted vi.mock factory.
+const { mockKill, mockIterableFactory } = vitest.hoisted(() => ({
+	mockKill: vitest.fn(),
+	// Default iterable yields one line; tests can replace this to simulate errors.
+	mockIterableFactory: { current: async function* () { yield "test output\n" } as () => AsyncGenerator<string> },
+}))
 
 vitest.mock("execa", () => {
 	const execa = vitest.fn((options: any) => {
 		return (_template: TemplateStringsArray, ...args: any[]) => ({
 			pid: mockPid,
-			iterable: (_opts: any) =>
-				(async function* () {
-					yield "test output\n"
-				})(),
+			iterable: (_opts: any) => mockIterableFactory.current(),
 			kill: mockKill,
 		})
 	})
@@ -191,6 +192,32 @@ describe("ExecaTerminalProcess", () => {
 			// abort() before run() is called -- pid is undefined
 			terminalProcess.abort()
 			expect(killSpy).not.toHaveBeenCalled()
+			killSpy.mockRestore()
+		})
+
+		it("emits exitCode 137 when the stream throws before the aborted flag is checked (race condition)", async () => {
+			// Simulate the race: SIGKILL arrives and the iterable throws an ExecaError
+			// before the for-await loop reads this.aborted and breaks cleanly.
+			const { ExecaError } = await import("execa")
+			const throwingError = Object.assign(new ExecaError(), { exitCode: null, signal: "SIGKILL", message: "killed" })
+			mockIterableFactory.current = async function* () {
+				throw throwingError
+			}
+
+			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => true)
+			const completeSpy = vitest.fn()
+			terminalProcess.on("shell_execution_complete", completeSpy)
+
+			// abort() before run() resolves so this.aborted is true when the catch fires
+			const runPromise = terminalProcess.run("sleep 30")
+			await Promise.resolve()
+			terminalProcess.abort()
+			await runPromise
+
+			expect(completeSpy).toHaveBeenCalledWith({ exitCode: 137, signalName: "SIGKILL" })
+
+			// Restore default iterable for subsequent tests
+			mockIterableFactory.current = async function* () { yield "test output\n" }
 			killSpy.mockRestore()
 		})
 	})
