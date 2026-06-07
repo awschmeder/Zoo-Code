@@ -17,10 +17,6 @@ vitest.mock("execa", () => {
 	return { execa, ExecaError: class extends Error {} }
 })
 
-vitest.mock("ps-tree", () => ({
-	default: vitest.fn((_: number, cb: any) => cb(null, [])),
-}))
-
 import { execa } from "execa"
 import { ExecaTerminalProcess } from "../ExecaTerminalProcess"
 import { BaseTerminal } from "../BaseTerminal"
@@ -66,6 +62,7 @@ describe("ExecaTerminalProcess", () => {
 					shell: true,
 					cwd: "/test/cwd",
 					all: true,
+					detached: true,
 					env: expect.objectContaining({
 						LANG: "en_US.UTF-8",
 						LC_ALL: "en_US.UTF-8",
@@ -141,6 +138,58 @@ describe("ExecaTerminalProcess", () => {
 			await terminalProcess.run("echo test")
 			expect(mockTerminal.setActiveStream).toHaveBeenCalledWith(expect.any(Object), mockPid)
 			expect(mockTerminal.setActiveStream).toHaveBeenLastCalledWith(undefined)
+		})
+	})
+
+	describe("abort", () => {
+		it("kills the process group using a negative PID so child processes are not orphaned", async () => {
+			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => true)
+
+			// Start run() but abort before it resolves
+			const runPromise = terminalProcess.run("sleep 30")
+			// Yield so run() can set this.pid from the mock subprocess
+			await Promise.resolve()
+			terminalProcess.abort()
+			await runPromise
+
+			expect(killSpy).toHaveBeenCalledWith(-mockPid, "SIGKILL")
+			killSpy.mockRestore()
+		})
+
+		it("falls back to subprocess.kill when process group kill throws", async () => {
+			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => {
+				throw new Error("ESRCH")
+			})
+			const execaMock = vitest.mocked(execa)
+			// Grab the mock subprocess kill function after run starts
+			let subprocessKill: ReturnType<typeof vitest.fn> | undefined
+
+			const runPromise = terminalProcess.run("sleep 30")
+			await Promise.resolve()
+
+			// Reach into the mock to capture the subprocess kill fn
+			const calls = execaMock.mock.results
+			if (calls.length > 0) {
+				const taggedFn = calls[0].value as any
+				subprocessKill = taggedFn?.kill
+			}
+
+			terminalProcess.abort()
+			await runPromise
+
+			// process group kill failed, subprocess.kill should have been called
+			if (subprocessKill) {
+				expect(subprocessKill).toHaveBeenCalledWith("SIGKILL")
+			}
+			killSpy.mockRestore()
+		})
+
+		it("does nothing when pid is not yet set", () => {
+			const killSpy = vitest.spyOn(process, "kill").mockImplementation(() => true)
+			// abort() before run() is called -- pid is undefined
+			terminalProcess.abort()
+			expect(killSpy).not.toHaveBeenCalled()
+			killSpy.mockRestore()
 		})
 	})
 
