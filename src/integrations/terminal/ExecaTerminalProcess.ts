@@ -1,3 +1,5 @@
+import { spawnSync } from "child_process"
+
 import { execa, ExecaError } from "execa"
 import process from "process"
 
@@ -133,23 +135,44 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 			return
 		}
 
-		// Kill the entire process group (shell + all child commands) with
-		// SIGKILL. Using a negative PID sends the signal to every process in
-		// the group, so child commands are not orphaned. Requires 'detached'.
-		try {
-			process.kill(-this.pid, "SIGKILL")
-		} catch (e) {
-			console.warn(
-				`[ExecaTerminalProcess#abort] Failed to kill process group -${this.pid}: ${e instanceof Error ? e.message : String(e)}`,
-			)
-
-			// Fall back to killing the subprocess directly if process group kill fails.
+		if (process.platform === "win32") {
+			// On Windows, taskkill /F /T kills the entire process tree (shell + all
+			// child commands), since negative-PID group kill is a POSIX-only concept.
 			try {
-				this.subprocess?.kill("SIGKILL")
-			} catch (e2) {
+				spawnSync("taskkill", ["/F", "/T", "/PID", String(this.pid)])
+			} catch (e) {
 				console.warn(
-					`[ExecaTerminalProcess#abort] Fallback kill also failed: ${e2 instanceof Error ? e2.message : String(e2)}`,
+					`[ExecaTerminalProcess#abort] taskkill failed for PID ${this.pid}: ${e instanceof Error ? e.message : String(e)}`,
 				)
+
+				// Fall back to killing the subprocess directly.
+				try {
+					this.subprocess?.kill("SIGKILL")
+				} catch (e2) {
+					console.warn(
+						`[ExecaTerminalProcess#abort] Fallback kill also failed: ${e2 instanceof Error ? e2.message : String(e2)}`,
+					)
+				}
+			}
+		} else {
+			// POSIX: kill the entire process group (shell + all child commands) with
+			// SIGKILL. Using a negative PID sends the signal to every process in
+			// the group, so child commands are not orphaned. Requires 'detached'.
+			try {
+				process.kill(-this.pid, "SIGKILL")
+			} catch (e) {
+				console.warn(
+					`[ExecaTerminalProcess#abort] Failed to kill process group -${this.pid}: ${e instanceof Error ? e.message : String(e)}`,
+				)
+
+				// Fall back to killing the subprocess directly if process group kill fails.
+				try {
+					this.subprocess?.kill("SIGKILL")
+				} catch (e2) {
+					console.warn(
+						`[ExecaTerminalProcess#abort] Fallback kill also failed: ${e2 instanceof Error ? e2.message : String(e2)}`,
+					)
+				}
 			}
 		}
 	}

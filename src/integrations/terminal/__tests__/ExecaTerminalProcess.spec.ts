@@ -2,10 +2,15 @@
 
 const mockPid = 12345
 // Declared via vi.hoisted so they are available inside the hoisted vi.mock factory.
-const { mockKill, mockIterableFactory } = vitest.hoisted(() => ({
+const { mockKill, mockSpawnSync, mockIterableFactory } = vitest.hoisted(() => ({
 	mockKill: vitest.fn(),
+	mockSpawnSync: vitest.fn().mockReturnValue({ status: 0 }),
 	// Default iterable yields one line; tests can replace this to simulate errors.
 	mockIterableFactory: { current: async function* () { yield "test output\n" } as () => AsyncGenerator<string> },
+}))
+
+vitest.mock("child_process", () => ({
+	spawnSync: mockSpawnSync,
 }))
 
 vitest.mock("execa", () => {
@@ -219,6 +224,33 @@ describe("ExecaTerminalProcess", () => {
 			// Restore default iterable for subsequent tests
 			mockIterableFactory.current = async function* () { yield "test output\n" }
 			killSpy.mockRestore()
+		})
+	})
+
+	describe("abort (Windows)", () => {
+		const isWindows = process.platform === "win32"
+		const describeWindows = isWindows ? describe : describe.skip
+
+		describeWindows("on win32", () => {
+			it("kills the process tree via taskkill /F /T so child processes are not orphaned", async () => {
+				const runPromise = terminalProcess.run("sleep 30")
+				await Promise.resolve()
+				terminalProcess.abort()
+				await runPromise
+
+				expect(mockSpawnSync).toHaveBeenCalledWith("taskkill", ["/F", "/T", "/PID", String(mockPid)])
+			})
+
+			it("falls back to subprocess.kill when taskkill throws", async () => {
+				mockSpawnSync.mockImplementationOnce(() => { throw new Error("not found") })
+
+				const runPromise = terminalProcess.run("sleep 30")
+				await Promise.resolve()
+				terminalProcess.abort()
+				await runPromise
+
+				expect(mockKill).toHaveBeenCalledWith("SIGKILL")
+			})
 		})
 	})
 
