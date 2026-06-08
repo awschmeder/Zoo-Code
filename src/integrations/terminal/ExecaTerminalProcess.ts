@@ -44,7 +44,15 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 				cwd: this.terminal.getCurrentWorkingDirectory(),
 				all: true,
 				stdin: "ignore",
-				detached: true,
+				// On POSIX, detached: true puts the child in its own process group so
+				// abort() can send SIGKILL to the entire group via process.kill(-pid).
+				// On Windows, detached: true causes a console-window flash that
+				// windowsHide cannot reliably suppress (the OS allocates the window
+				// before the hide flag is fully processed).
+				// We omit detached on Windows; Windows abort() uses `taskkill /F /T` instead,
+				// which walks the PPID tree via Windows APIs and does not
+				// require the child to be in a detached state.
+				detached: process.platform !== "win32",
 				env: {
 					...process.env,
 					// Ensure UTF-8 encoding for Ruby, CocoaPods, etc.
