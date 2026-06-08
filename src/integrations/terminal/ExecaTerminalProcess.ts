@@ -81,20 +81,19 @@ export class ExecaTerminalProcess extends BaseTerminalProcess {
 				this.startHotTimer(line)
 			}
 
-			if (this.aborted) {
+				if (this.aborted) {
 					try {
 						await this.subprocess
 					} catch (error) {
 						// Expected: process was killed by abort(); swallow the error.
 					}
 	
-					// emit signal 128 + 9 (SIGKILL) to match conventional shell exit code so
-					// the front-end correctly detects a non-normal exit
+					// 128 + 9 (SIGKILL) mirrors the conventional shell exit code so the
+					// UI indicator correctly shows a non-zero (red) exit.
 					this.emit("shell_execution_complete", { exitCode: 137, signalName: "SIGKILL" })
-					return
+				} else {
+					this.emit("shell_execution_complete", { exitCode: 0 })
 				}
-	
-				this.emit("shell_execution_complete", { exitCode: 0 })
 		} catch (error) {
 			// If abort() fired and the stream threw before the loop checked this.aborted,
 			// treat it as a SIGKILL exit rather than a generic error.
