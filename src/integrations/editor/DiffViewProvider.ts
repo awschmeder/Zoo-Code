@@ -16,7 +16,7 @@ import { Task } from "../../core/task/Task"
 import { DecorationController } from "./DecorationController"
 
 export const DIFF_VIEW_URI_SCHEME = "cline-diff"
-export const DIFF_VIEW_LABEL_CHANGES = "Original ↔ Roo's Changes"
+export const DIFF_VIEW_LABEL_CHANGES = "Original ↔ Zoo's Changes"
 
 // TODO: https://github.com/cline/cline/pull/3354
 export class DiffViewProvider {
@@ -28,6 +28,10 @@ export class DiffViewProvider {
 	originalContent: string | undefined
 	private createdDirs: string[] = []
 	private documentWasOpen = false
+	// Tracks whether the target file's tab was pinned before the diff session.
+	// Closing the tab to open the diff drops VS Code's pin state, so we restore
+	// it when re-showing the edited file afterward.
+	private documentWasPinned = false
 	private relPath?: string
 	private newContent?: string
 	private activeDiffEditor?: vscode.TextEditor
@@ -35,6 +39,18 @@ export class DiffViewProvider {
 	private activeLineController?: DecorationController
 	private streamedLines: string[] = []
 	private preDiagnostics: [vscode.Uri, vscode.Diagnostic[]][] = []
+	private preEditScrollLine: number | undefined
+	// Tracks whether the user activated the target file's editor tab during the
+	// diff session. When the file was not already open before the edit, we only
+	// keep it open afterward if the user explicitly interacted with it.
+	private userTouchedDocument = false
+	private activeEditorListener?: vscode.Disposable
+	private deferredScrollTimer?: ReturnType<typeof setTimeout>
+	// Snapshot of unrelated preview tabs (italicized, not-yet-edited) captured at
+	// diff-open time. Opening the diff reuses the editor group's single preview
+	// slot and evicts these tabs; we restore any that disappeared after the diff
+	// session ends so the user's prior tab state is reconstructed.
+	private snapshotPreviewTabs: Array<{ uri: vscode.Uri; scrollLine: number | undefined }> = []
 	private taskRef: WeakRef<Task>
 
 	constructor(
@@ -49,6 +65,13 @@ export class DiffViewProvider {
 		const fileExists = this.editType === "modify"
 		const absolutePath = path.resolve(this.cwd, relPath)
 		this.isEditing = true
+
+		// Capture the current scroll position before we close the tab so we can
+		// restore it after saving/reverting.
+		const existingEditor = vscode.window.visibleTextEditors.find(
+			(e) => e.document.uri.scheme === "file" && arePathsEqual(e.document.uri.fsPath, absolutePath),
+		)
+		this.preEditScrollLine = existingEditor?.visibleRanges?.[0]?.start.line
 
 		// If the file is already open, ensure it's not dirty before getting its
 		// contents.
@@ -84,6 +107,7 @@ export class DiffViewProvider {
 		// If the file was already open, close it (must happen after showing the
 		// diff view since if it's the only tab the column will close).
 		this.documentWasOpen = false
+		this.documentWasPinned = false
 
 		// Close the tab if it's open (it's already saved above).
 		const tabs = vscode.window.tabGroups.all
@@ -97,6 +121,11 @@ export class DiffViewProvider {
 			)
 
 		for (const tab of tabs) {
+			// Remember the pin state so we can restore it after the diff closes;
+			// closing the tab to open the diff would otherwise lose it.
+			if (tab.isPinned) {
+				this.documentWasPinned = true
+			}
 			if (!tab.isDirty) {
 				try {
 					await vscode.window.tabGroups.close(tab)
@@ -107,13 +136,41 @@ export class DiffViewProvider {
 			this.documentWasOpen = true
 		}
 
+		// Snapshot unrelated preview tabs so we can restore them if opening the
+		// diff evicts them (VS Code reuses the group's single preview slot).
+		this.snapshotPreviewTabs = this.captureUnrelatedPreviewTabs(absolutePath)
+
 		this.activeDiffEditor = await this.openDiffEditor()
 		this.fadedOverlayController = new DecorationController("fadedOverlay", this.activeDiffEditor)
 		this.activeLineController = new DecorationController("activeLine", this.activeDiffEditor)
 		// Apply faded overlay to all lines initially.
 		this.fadedOverlayController.addLines(0, this.activeDiffEditor.document.lineCount)
-		this.scrollEditorToLine(0) // Will this crash for new files?
+		// Do not force the viewport to the top here. Tools call scrollToFirstDiff()
+		// after the final update so the diff opens on the first changed line; an
+		// unconditional scroll-to-0 would override that and land off the change.
 		this.streamedLines = []
+
+		// When the file was not already open before the edit, watch for the user
+		// activating the file's own editor tab. If they do, we treat the file as
+		// "touched" and keep it open after accepting/denying instead of closing
+		// the transiently opened tab. Activating the diff view does not count.
+		this.userTouchedDocument = false
+		if (!this.documentWasOpen) {
+			this.activeEditorListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
+				if (!editor || editor.document.uri.scheme !== "file") {
+					return
+				}
+				if (!arePathsEqual(editor.document.uri.fsPath, absolutePath)) {
+					return
+				}
+				// Ignore activation of the diff editor, which can share the file path.
+				const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
+				if (activeTab?.input instanceof vscode.TabInputTextDiff) {
+					return
+				}
+				this.userTouchedDocument = true
+			})
+		}
 	}
 
 	async update(accumulatedContent: string, isFinal: boolean) {
@@ -213,8 +270,18 @@ export class DiffViewProvider {
 			await updatedDocument.save()
 		}
 
-		await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), { preview: false, preserveFocus: true })
+		// Stop tracking touches and cancel any pending scroll-to-diff before any
+		// programmatic editor activation below.
+		this.disposeActiveEditorListener()
+		this.cancelDeferredScroll()
+
 		await this.closeAllDiffViews()
+
+		await this.keepOrCloseEditedFile(absolutePath)
+
+		// Restore any preview tabs the diff evicted, reconstructing the user's
+		// prior not-yet-edited tab state.
+		await this.restorePreviewTabs()
 
 		// Getting diagnostics before and after the file edit is a better approach than
 		// automatically tracking problems in real-time. This method ensures we only
@@ -371,12 +438,20 @@ export class DiffViewProvider {
 		const updatedDocument = this.activeDiffEditor.document
 		const absolutePath = path.resolve(this.cwd, this.relPath)
 
+		// Stop tracking touches and cancel any pending scroll-to-diff before any
+		// programmatic editor activation below.
+		this.disposeActiveEditorListener()
+		this.cancelDeferredScroll()
+
 		if (!fileExists) {
 			if (updatedDocument.isDirty) {
 				await updatedDocument.save()
 			}
 
 			await this.closeAllDiffViews()
+			// The file was newly created for this edit; close its transiently
+			// opened tab before deleting it from disk.
+			await this.closeFileTab(absolutePath)
 			await fs.unlink(absolutePath)
 
 			// Remove only the directories we created, in reverse order.
@@ -400,15 +475,14 @@ export class DiffViewProvider {
 			await vscode.workspace.applyEdit(edit)
 			await updatedDocument.save()
 
-			if (this.documentWasOpen) {
-				await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
-					preview: false,
-					preserveFocus: true,
-				})
-			}
-
 			await this.closeAllDiffViews()
+
+			await this.keepOrCloseEditedFile(absolutePath)
 		}
+
+		// Restore any preview tabs the diff evicted, reconstructing the user's
+		// prior not-yet-edited tab state.
+		await this.restorePreviewTabs()
 
 		// Edit is done.
 		await this.reset()
@@ -446,6 +520,186 @@ export class DiffViewProvider {
 			)
 
 		await Promise.all(closeOps)
+	}
+
+	// Stop tracking user activation of the target file. Called before any
+	// programmatic showTextDocument so our own re-show never counts as a "touch".
+	private disposeActiveEditorListener(): void {
+		this.activeEditorListener?.dispose()
+		this.activeEditorListener = undefined
+	}
+
+	// Cancel any pending deferred scroll-to-diff. Must run as soon as the user
+	// accepts/denies (before saveChanges/revertChanges restore the pre-edit
+	// viewport), otherwise a late timer could fire after the scroll-restore and
+	// yank the file back to the diff target. With auto-approve this window is
+	// especially tight because save runs immediately after scrollToFirstDiff.
+	private cancelDeferredScroll(): void {
+		if (this.deferredScrollTimer !== undefined) {
+			clearTimeout(this.deferredScrollTimer)
+			this.deferredScrollTimer = undefined
+		}
+	}
+
+	// Shared accept/deny cleanup: keep the edited file open if it was already open
+	// before the edit or the user interacted with it during the diff; otherwise
+	// close the tab that was opened transiently for the diff.
+	private async keepOrCloseEditedFile(absolutePath: string): Promise<void> {
+		if (this.documentWasOpen || this.userTouchedDocument) {
+			await this.showEditedFileWithoutDisruptingFocus(absolutePath)
+		} else {
+			await this.closeFileTab(absolutePath)
+		}
+	}
+
+	// Re-show the edited file so it stays open after the diff closes and restore
+	// its pre-edit scroll position, WITHOUT disrupting wherever the user is
+	// currently looking. showTextDocument activates the target's tab in its
+	// group, so if the user navigated to a different file during the diff (e.g.
+	// they clicked back to file-1 while file-2 was being edited), naively showing
+	// the edited file would yank the active editor onto it. We capture the user's
+	// active editor first and re-activate it afterward when it differs.
+	private async showEditedFileWithoutDisruptingFocus(absolutePath: string): Promise<void> {
+		const userActiveEditor = vscode.window.activeTextEditor
+		const userWasElsewhere =
+			!!userActiveEditor &&
+			!(
+				userActiveEditor.document.uri.scheme === "file" &&
+				arePathsEqual(userActiveEditor.document.uri.fsPath, absolutePath)
+			)
+
+		// When the tab needs re-pinning we must briefly focus it, since
+		// workbench.action.pinEditor only acts on the active editor. Otherwise we
+		// keep the user's focus undisturbed with preserveFocus.
+		const editor = await vscode.window.showTextDocument(vscode.Uri.file(absolutePath), {
+			preview: false,
+			preserveFocus: !this.documentWasPinned,
+		})
+		if (this.preEditScrollLine !== undefined) {
+			editor.revealRange(
+				new vscode.Range(this.preEditScrollLine, 0, this.preEditScrollLine, 0),
+				vscode.TextEditorRevealType.AtTop,
+			)
+		}
+
+		// Restore the pin state that was dropped when the tab was closed to open
+		// the diff. The edited file is active here (we focused it above), so the
+		// command targets the correct tab.
+		if (this.documentWasPinned) {
+			try {
+				await vscode.commands.executeCommand("workbench.action.pinEditor")
+			} catch (err) {
+				console.error(`Failed to re-pin edited file`, err)
+			}
+		}
+
+		// If the user was viewing a different editor, re-activate it so the edited
+		// file stays open in the background instead of stealing the foreground.
+		if (userWasElsewhere && userActiveEditor) {
+			try {
+				await vscode.window.showTextDocument(userActiveEditor.document, {
+					viewColumn: userActiveEditor.viewColumn,
+					preserveFocus: false,
+				})
+			} catch (err) {
+				console.error(`Failed to restore user's active editor`, err)
+			}
+		}
+	}
+
+	// Capture unrelated preview tabs (italicized, not-yet-edited) along with their
+	// current scroll position. Opening the diff reuses the editor group's single
+	// preview slot and evicts these tabs; the snapshot lets us restore them after
+	// the diff session ends. The diff target is excluded since it is about to be
+	// replaced by the diff view anyway.
+	private captureUnrelatedPreviewTabs(
+		diffTargetPath: string,
+	): Array<{ uri: vscode.Uri; scrollLine: number | undefined }> {
+		return vscode.window.tabGroups.all.flatMap((group) =>
+			group.tabs
+				.filter(
+					(tab) =>
+						tab.isPreview &&
+						tab.input instanceof vscode.TabInputText &&
+						tab.input.uri.scheme === "file" &&
+						!arePathsEqual(tab.input.uri.fsPath, diffTargetPath),
+				)
+				.map((tab) => {
+					const uri = (tab.input as vscode.TabInputText).uri
+					const visibleEditor = vscode.window.visibleTextEditors.find(
+						(e) => e.document.uri.scheme === "file" && arePathsEqual(e.document.uri.fsPath, uri.fsPath),
+					)
+					return { uri, scrollLine: visibleEditor?.visibleRanges?.[0]?.start.line }
+				}),
+		)
+	}
+
+	// Restore preview tabs captured before the diff opened, but only those VS Code
+	// evicted. Each is re-opened in preview mode (preserving the user's
+	// not-yet-edited state) without stealing focus, and its prior scroll position
+	// is reapplied.
+	private async restorePreviewTabs(): Promise<void> {
+		for (const snapshot of this.snapshotPreviewTabs) {
+			const stillOpen = vscode.window.tabGroups.all
+				.flatMap((group) => group.tabs)
+				.some(
+					(tab) =>
+						tab.input instanceof vscode.TabInputText &&
+						tab.input.uri.scheme === "file" &&
+						arePathsEqual(tab.input.uri.fsPath, snapshot.uri.fsPath),
+				)
+
+			if (stillOpen) {
+				continue
+			}
+
+			// The file may have been deleted, renamed, or moved during the diff
+			// session. Skip restoring a tab whose underlying file no longer exists.
+			try {
+				await fs.access(snapshot.uri.fsPath)
+			} catch {
+				continue
+			}
+
+			try {
+				const editor = await vscode.window.showTextDocument(snapshot.uri, {
+					preview: true,
+					preserveFocus: true,
+				})
+				if (snapshot.scrollLine !== undefined) {
+					editor.revealRange(
+						new vscode.Range(snapshot.scrollLine, 0, snapshot.scrollLine, 0),
+						vscode.TextEditorRevealType.AtTop,
+					)
+				}
+			} catch (err) {
+				console.error(`Failed to restore preview tab ${snapshot.uri.fsPath}`, err)
+			}
+		}
+		this.snapshotPreviewTabs = []
+	}
+
+	// Close the plain (non-diff) editor tab for the target file. Used when the
+	// file was opened transiently for the diff and the user never interacted
+	// with it, so it should not linger after accept/deny.
+	private async closeFileTab(absolutePath: string): Promise<void> {
+		const tabs = vscode.window.tabGroups.all
+			.flatMap((group) => group.tabs)
+			.filter(
+				(tab) =>
+					tab.input instanceof vscode.TabInputText &&
+					tab.input.uri.scheme === "file" &&
+					arePathsEqual(tab.input.uri.fsPath, absolutePath) &&
+					!tab.isDirty,
+			)
+
+		for (const tab of tabs) {
+			try {
+				await vscode.window.tabGroups.close(tab)
+			} catch (err) {
+				console.error(`Failed to close file tab ${tab.label}`, err)
+			}
+		}
 	}
 
 	private async openDiffEditor(): Promise<vscode.TextEditor> {
@@ -578,30 +832,97 @@ export class DiffViewProvider {
 	}
 
 	scrollToFirstDiff() {
-		if (!this.activeDiffEditor) {
+		const editor = this.activeDiffEditor
+		if (!editor) {
 			return
 		}
 
-		const currentContent = this.activeDiffEditor.document.getText()
+		const targetLine = this.findFirstDiffLine(editor)
+		if (targetLine === undefined) {
+			return
+		}
+
+		// Reveal on the live modified-side editor, then once more after the diff
+		// editor's late layout pass settles. When the file was already open and
+		// scrolled away from the top, the vscode.diff command re-lays-out the diff
+		// and momentarily snaps the viewport to the top; a single synchronous
+		// reveal can be overridden by that pass. The deferred reveal is gated on
+		// the diff still being active so a stale timer can never act on a diff
+		// opened by a later edit.
+		this.revealDiffLine(this.resolveLiveEditor(editor), targetLine)
+
+		this.cancelDeferredScroll()
+		this.deferredScrollTimer = setTimeout(() => {
+			this.deferredScrollTimer = undefined
+			if (this.activeDiffEditor === editor) {
+				this.revealDiffLine(this.resolveLiveEditor(editor), targetLine)
+			}
+		}, 100)
+	}
+
+	// The TextEditor reference captured when the diff opened can be a stale,
+	// detached instance whose visibleRanges no longer reflect the on-screen diff
+	// widget (this happens when the file was already open before the edit). A
+	// revealRange on that stale editor is a silent no-op because it believes the
+	// target line is already visible. Re-resolve the current modified-side editor
+	// for the same document at scroll time so the reveal drives the live viewport.
+	private resolveLiveEditor(editor: vscode.TextEditor): vscode.TextEditor {
+		return (
+			vscode.window.visibleTextEditors.find(
+				(e) => e.document.uri.scheme === "file" && e.document === editor.document,
+			) ?? editor
+		)
+	}
+
+	// Index of the first change in the MODIFIED (right-hand) document, or
+	// undefined when there is no change. For removals this is the line that now
+	// occupies the position of the removed block.
+	private findFirstDiffLine(editor: vscode.TextEditor): number | undefined {
+		const document = editor.document
+		const currentContent = document.getText()
 		const diffs = diff.diffLines(this.originalContent || "", currentContent)
 
 		let lineCount = 0
 
 		for (const part of diffs) {
 			if (part.added || part.removed) {
-				// Found the first diff, scroll to it without stealing focus.
-				this.activeDiffEditor.revealRange(
-					new vscode.Range(lineCount, 0, lineCount, 0),
-					vscode.TextEditorRevealType.InCenter,
-				)
-
-				return
+				// A pure removal at the end of the file leaves the first-change line
+				// at (or past) the end of the modified document. Revealing a range at
+				// that out-of-bounds line clamps to the last line and the composite
+				// diff widget never moves. Clamp the target into the document so the
+				// reveal always lands on a real line.
+				const lastLine = Math.max(0, document.lineCount - 1)
+				return Math.min(lineCount, lastLine)
 			}
 
 			if (!part.removed) {
 				lineCount += part.count || 0
 			}
 		}
+
+		return undefined
+	}
+
+	private revealDiffLine(editor: vscode.TextEditor, targetLine: number) {
+		// Clamp again at reveal time: deferred reveals can run after a later edit
+		// shortened the document, and an out-of-bounds selection would snap the
+		// composite diff widget back to the top and leave it stuck there.
+		const lastLine = Math.max(0, editor.document.lineCount - 1)
+		const safeLine = Math.min(Math.max(0, targetLine), lastLine)
+
+		// Anchor the selection on the target line before revealing. update() parks
+		// the selection at (0,0) to keep it out of the stream animation; moving the
+		// selection to the target first nudges the composite diff widget toward the
+		// change. preserveFocus semantics are unaffected because we never activate
+		// the editor here.
+		const targetPosition = new vscode.Position(safeLine, 0)
+		editor.selection = new vscode.Selection(targetPosition, targetPosition)
+
+		const lineLength = editor.document.lineAt ? editor.document.lineAt(safeLine).text.length : 0
+		editor.revealRange(
+			new vscode.Range(safeLine, 0, safeLine, lineLength),
+			vscode.TextEditorRevealType.InCenter,
+		)
 	}
 
 	private stripAllBOMs(input: string): string {
@@ -623,11 +944,17 @@ export class DiffViewProvider {
 		this.originalContent = undefined
 		this.createdDirs = []
 		this.documentWasOpen = false
+		this.documentWasPinned = false
+		this.cancelDeferredScroll()
 		this.activeDiffEditor = undefined
 		this.fadedOverlayController = undefined
 		this.activeLineController = undefined
 		this.streamedLines = []
 		this.preDiagnostics = []
+		this.preEditScrollLine = undefined
+		this.userTouchedDocument = false
+		this.snapshotPreviewTabs = []
+		this.disposeActiveEditorListener()
 	}
 
 	/**
