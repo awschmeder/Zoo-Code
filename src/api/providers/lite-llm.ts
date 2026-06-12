@@ -223,8 +223,18 @@ export class LiteLLMHandler extends RouterProvider implements SingleCompletionHa
 			requestOptions.temperature = this.options.modelTemperature ?? 0
 		}
 
+		// LiteLLM recognizes X-<vendor>-Session-ID for per-conversation request correlation,
+		// matching the convention used by Claude Code (x-claude-code-session-id) and
+		// GitHub Copilot (x-copilot-session-id).
+		const requestHeaders: Record<string, string> = {}
+		if (metadata?.taskId) {
+			requestHeaders["X-Zoo-Session-ID"] = metadata.taskId
+		}
+
 		try {
-			const { data: completion } = await this.client.chat.completions.create(requestOptions).withResponse()
+			const { data: completion } = await this.client.chat.completions
+				.create(requestOptions, { headers: requestHeaders })
+				.withResponse()
 
 			let lastUsage
 
