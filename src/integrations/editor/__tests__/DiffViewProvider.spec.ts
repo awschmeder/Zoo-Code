@@ -512,19 +512,22 @@ describe("DiffViewProvider", () => {
 			return { isPreview, input, label: fsPath }
 		}
 
-		const setTabs = (tabs: any[]) => {
+		const setTabs = (tabs: any[], viewColumn = vscode.ViewColumn.One) => {
 			Object.defineProperty(vscode.window.tabGroups, "all", {
-				get: () => [{ tabs }],
+				get: () => [{ tabs, viewColumn }],
 				configurable: true,
 			})
 		}
 
-		it("captures unrelated preview tabs with their scroll position, excluding the diff target", () => {
-			setTabs([
-				makePreviewTab("/mock/cwd/file-1.txt"),
-				makePreviewTab("/mock/cwd/file-2.txt"), // diff target -- excluded
-				makePreviewTab("/mock/cwd/file-3.txt", false), // not a preview -- excluded
-			])
+		it("captures unrelated preview tabs with their scroll position and group, excluding the diff target", () => {
+			setTabs(
+				[
+					makePreviewTab("/mock/cwd/file-1.txt"),
+					makePreviewTab("/mock/cwd/file-2.txt"), // diff target -- excluded
+					makePreviewTab("/mock/cwd/file-3.txt", false), // not a preview -- excluded
+				],
+				vscode.ViewColumn.Two,
+			)
 			vi.mocked(vscode.window).visibleTextEditors = [
 				{
 					document: { uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" } },
@@ -537,22 +540,23 @@ describe("DiffViewProvider", () => {
 			expect(snapshot).toHaveLength(1)
 			expect(snapshot[0].uri.fsPath).toBe("/mock/cwd/file-1.txt")
 			expect(snapshot[0].scrollLine).toBe(12)
+			expect(snapshot[0].viewColumn).toBe(vscode.ViewColumn.Two)
 		})
 
-		it("restores an evicted preview tab in preview mode and reapplies its scroll position", async () => {
+		it("restores an evicted preview tab in its original group and reapplies its scroll position", async () => {
 			const revealRange = vi.fn()
 			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange } as any)
 			// The captured file is no longer open (evicted by the diff).
 			setTabs([])
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 12 },
+				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 12, viewColumn: vscode.ViewColumn.Two },
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()
 
 			expect(vscode.window.showTextDocument).toHaveBeenCalledWith(
 				{ fsPath: "/mock/cwd/file-1.txt", scheme: "file" },
-				{ preview: true, preserveFocus: true },
+				{ preview: true, preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
 			)
 			expect(revealRange).toHaveBeenCalledWith(
 				expect.objectContaining({ start: { line: 12, character: 0 } }),
@@ -564,7 +568,7 @@ describe("DiffViewProvider", () => {
 		it("does not restore a preview tab that is still open", async () => {
 			setTabs([makePreviewTab("/mock/cwd/file-1.txt")])
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 0 },
+				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 0, viewColumn: vscode.ViewColumn.One },
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()
@@ -577,7 +581,7 @@ describe("DiffViewProvider", () => {
 			const fs = await import("fs/promises")
 			vi.mocked(fs.access).mockRejectedValueOnce(new Error("ENOENT"))
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/deleted.txt", scheme: "file" }, scrollLine: 0 },
+				{ uri: { fsPath: "/mock/cwd/deleted.txt", scheme: "file" }, scrollLine: 0, viewColumn: vscode.ViewColumn.One },
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()

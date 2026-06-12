@@ -50,7 +50,7 @@ export class DiffViewProvider {
 	// diff-open time. Opening the diff reuses the editor group's single preview
 	// slot and evicts these tabs; we restore any that disappeared after the diff
 	// session ends so the user's prior tab state is reconstructed.
-	private snapshotPreviewTabs: Array<{ uri: vscode.Uri; scrollLine: number | undefined }> = []
+	private snapshotPreviewTabs: Array<{ uri: vscode.Uri; scrollLine: number | undefined; viewColumn: vscode.ViewColumn }> = []
 	private taskRef: WeakRef<Task>
 
 	constructor(
@@ -608,13 +608,13 @@ export class DiffViewProvider {
 	}
 
 	// Capture unrelated preview tabs (italicized, not-yet-edited) along with their
-	// current scroll position. Opening the diff reuses the editor group's single
-	// preview slot and evicts these tabs; the snapshot lets us restore them after
-	// the diff session ends. The diff target is excluded since it is about to be
-	// replaced by the diff view anyway.
+	// current scroll position and editor group. Opening the diff reuses the group's
+	// single preview slot and evicts these tabs; the snapshot lets us restore them
+	// in the correct group after the diff session ends. The diff target is excluded
+	// since it is about to be replaced by the diff view anyway.
 	private captureUnrelatedPreviewTabs(
 		diffTargetPath: string,
-	): Array<{ uri: vscode.Uri; scrollLine: number | undefined }> {
+	): Array<{ uri: vscode.Uri; scrollLine: number | undefined; viewColumn: vscode.ViewColumn }> {
 		return vscode.window.tabGroups.all.flatMap((group) =>
 			group.tabs
 				.filter(
@@ -629,7 +629,7 @@ export class DiffViewProvider {
 					const visibleEditor = vscode.window.visibleTextEditors.find(
 						(e) => e.document.uri.scheme === "file" && arePathsEqual(e.document.uri.fsPath, uri.fsPath),
 					)
-					return { uri, scrollLine: visibleEditor?.visibleRanges?.[0]?.start.line }
+					return { uri, scrollLine: visibleEditor?.visibleRanges?.[0]?.start.line, viewColumn: group.viewColumn }
 				}),
 		)
 	}
@@ -665,6 +665,7 @@ export class DiffViewProvider {
 				const editor = await vscode.window.showTextDocument(snapshot.uri, {
 					preview: true,
 					preserveFocus: true,
+					viewColumn: snapshot.viewColumn,
 				})
 				if (snapshot.scrollLine !== undefined) {
 					editor.revealRange(
