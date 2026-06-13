@@ -3,7 +3,7 @@
 	"displayName": "%extension.displayName%",
 	"description": "%extension.description%",
 	"publisher": "ZooCodeOrganization",
-	"version": "3.58.1",
+	"version": "3.60.0",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -419,6 +419,21 @@
 					"default": false,
 					"description": "%settings.debugProxy.tlsInsecure.description%",
 					"markdownDescription": "%settings.debugProxy.tlsInsecure.description%"
+				},
+				"zoo-code.workspace.rootResolution": {
+					"type": "string",
+					"enum": [
+						"activeEditor",
+						"firstFolder"
+					],
+					"enumDescriptions": [
+						"%settings.workspace.rootResolution.activeEditor.description%",
+						"%settings.workspace.rootResolution.firstFolder.description%"
+					],
+					"default": "activeEditor",
+					"scope": "machine",
+					"description": "%settings.workspace.rootResolution.description%",
+					"markdownDescription": "%settings.workspace.rootResolution.description%"
 				}
 			}
 		}
