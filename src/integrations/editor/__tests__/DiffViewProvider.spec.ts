@@ -45,6 +45,8 @@ vi.mock("vscode", () => ({
 		showTextDocument: vi.fn(),
 		onDidChangeVisibleTextEditors: vi.fn(() => ({ dispose: vi.fn() })),
 		onDidChangeActiveTextEditor: vi.fn(() => ({ dispose: vi.fn() })),
+		onDidChangeTextEditorSelection: vi.fn(() => ({ dispose: vi.fn() })),
+		onDidChangeTextEditorVisibleRanges: vi.fn(() => ({ dispose: vi.fn() })),
 		tabGroups: {
 			all: [],
 			close: vi.fn(),
@@ -92,6 +94,11 @@ vi.mock("vscode", () => ({
 		InCenter: 2,
 		InCenterIfOutsideViewport: 3,
 		AtTop: 4,
+	},
+	TextEditorSelectionChangeKind: {
+		Keyboard: 1,
+		Mouse: 2,
+		Command: 3,
 	},
 	TabInputText: class TabInputText {},
 	TabInputTextDiff: class TabInputTextDiff {},
@@ -1207,6 +1214,377 @@ describe("DiffViewProvider", () => {
 			})
 
 			expect((diffViewProvider as any).userTouchedDocument).toBe(true)
+		})
+	})
+
+	describe("userTouchedDiffEditor keep/close behavior", () => {
+		const mockTargetPath = `${mockCwd}/mock-target-file.ts`
+
+		const buildActiveDiffEditor = () => ({
+			document: {
+				uri: { fsPath: mockTargetPath },
+				getText: vi.fn().mockReturnValue("content"),
+				isDirty: false,
+				save: vi.fn().mockResolvedValue(undefined),
+				positionAt: vi.fn().mockReturnValue({ line: 0, character: 0 }),
+			},
+		})
+
+		it("saveChanges() keeps the file open when the user clicked inside the diff editor", async () => {
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+			;(diffViewProvider as any).closeAllDiffViews = vi.fn().mockResolvedValue(undefined)
+			;(diffViewProvider as any).closeFileTab = closeFileTab
+			;(diffViewProvider as any).relPath = "mock-target-file.ts"
+			;(diffViewProvider as any).documentWasOpen = false
+			;(diffViewProvider as any).userTouchedDocument = false
+			// The user clicked in the diff editor -- the flag is true.
+			;(diffViewProvider as any).userTouchedDiffEditor = true
+			;(diffViewProvider as any).preEditScrollLine = undefined
+			;(diffViewProvider as any).newContent = "content"
+			;(diffViewProvider as any).activeDiffEditor = buildActiveDiffEditor()
+
+			await diffViewProvider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+			expect(vscode.window.showTextDocument).toHaveBeenCalled()
+		})
+
+		it("saveChanges() closes the file tab when the user only scrolled (not clicked) in the diff", async () => {
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(diffViewProvider as any).closeAllDiffViews = vi.fn().mockResolvedValue(undefined)
+			;(diffViewProvider as any).closeFileTab = closeFileTab
+			;(diffViewProvider as any).relPath = "mock-target-file.ts"
+			;(diffViewProvider as any).documentWasOpen = false
+			;(diffViewProvider as any).userTouchedDocument = false
+			// The user only scrolled -- the flag stays false.
+			;(diffViewProvider as any).userTouchedDiffEditor = false
+			;(diffViewProvider as any).preEditScrollLine = undefined
+			;(diffViewProvider as any).newContent = "content"
+			;(diffViewProvider as any).activeDiffEditor = buildActiveDiffEditor()
+
+			await diffViewProvider.saveChanges(false)
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
+			expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+		})
+
+		it("open() registers onDidChangeTextEditorSelection and sets userTouchedDiffEditor on event", async () => {
+			let selectionCallback: ((event: any) => void) | undefined
+			vi.mocked(vscode.window.onDidChangeTextEditorSelection).mockImplementation((cb: any) => {
+				selectionCallback = cb
+				return { dispose: vi.fn() }
+			})
+
+			const mockEditor = {
+				document: {
+					uri: { fsPath: `${mockCwd}/sel.ts`, scheme: "file" },
+					getText: vi.fn().mockReturnValue(""),
+					lineCount: 0,
+				},
+				selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+				edit: vi.fn().mockResolvedValue(true),
+				revealRange: vi.fn(),
+			}
+			vi.mocked(vscode.window).visibleTextEditors = [mockEditor as any]
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockEditor as any)
+			vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+				setTimeout(() => callback({ uri: { fsPath: `${mockCwd}/sel.ts`, scheme: "file" } } as any), 0)
+				return { dispose: vi.fn() }
+			})
+			vi.mocked(vscode.window.onDidChangeVisibleTextEditors).mockReturnValue({ dispose: vi.fn() })
+			;(diffViewProvider as any).editType = "modify"
+
+			await diffViewProvider.open("sel.ts")
+
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(false)
+
+			// Simulate a Mouse selection-change event on the captured diff editor.
+			const activeDiffEditor = (diffViewProvider as any).activeDiffEditor
+			selectionCallback?.({
+				textEditor: activeDiffEditor,
+				kind: vscode.TextEditorSelectionChangeKind.Mouse,
+			})
+
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(true)
+		})
+
+		it("open() does NOT set userTouchedDiffEditor for programmatic selection changes (kind=Command or undefined)", async () => {
+			let selectionCallback: ((event: any) => void) | undefined
+			vi.mocked(vscode.window.onDidChangeTextEditorSelection).mockImplementation((cb: any) => {
+				selectionCallback = cb
+				return { dispose: vi.fn() }
+			})
+
+			const mockEditor = {
+				document: {
+					uri: { fsPath: `${mockCwd}/prog.ts`, scheme: "file" },
+					getText: vi.fn().mockReturnValue(""),
+					lineCount: 0,
+				},
+				selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+				edit: vi.fn().mockResolvedValue(true),
+				revealRange: vi.fn(),
+			}
+			vi.mocked(vscode.window).visibleTextEditors = [mockEditor as any]
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockEditor as any)
+			vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+				setTimeout(() => callback({ uri: { fsPath: `${mockCwd}/prog.ts`, scheme: "file" } } as any), 0)
+				return { dispose: vi.fn() }
+			})
+			vi.mocked(vscode.window.onDidChangeVisibleTextEditors).mockReturnValue({ dispose: vi.fn() })
+			;(diffViewProvider as any).editType = "modify"
+
+			await diffViewProvider.open("prog.ts")
+
+			const activeDiffEditor = (diffViewProvider as any).activeDiffEditor
+
+			// Programmatic change via editor.selection= (kind undefined) -- e.g. revealDiffLine
+			selectionCallback?.({ textEditor: activeDiffEditor, kind: undefined })
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(false)
+
+			// Programmatic change via command (kind=Command)
+			selectionCallback?.({
+				textEditor: activeDiffEditor,
+				kind: vscode.TextEditorSelectionChangeKind.Command,
+			})
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(false)
+		})
+
+		it("open() sets userTouchedDiffEditor when event comes from a fresh editor instance wrapping the same document (stale ref fix)", async () => {
+			let selectionCallback: ((event: any) => void) | undefined
+			vi.mocked(vscode.window.onDidChangeTextEditorSelection).mockImplementation((cb: any) => {
+				selectionCallback = cb
+				return { dispose: vi.fn() }
+			})
+
+			const sharedDocument = {
+				uri: { fsPath: `${mockCwd}/stale.ts`, scheme: "file" },
+				getText: vi.fn().mockReturnValue(""),
+				lineCount: 0,
+			}
+			const originalEditor = {
+				document: sharedDocument,
+				selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+				edit: vi.fn().mockResolvedValue(true),
+				revealRange: vi.fn(),
+			}
+			vi.mocked(vscode.window).visibleTextEditors = [originalEditor as any]
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue(originalEditor as any)
+			vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+				setTimeout(() => callback({ uri: { fsPath: `${mockCwd}/stale.ts`, scheme: "file" } } as any), 0)
+				return { dispose: vi.fn() }
+			})
+			vi.mocked(vscode.window.onDidChangeVisibleTextEditors).mockReturnValue({ dispose: vi.fn() })
+			;(diffViewProvider as any).editType = "modify"
+
+			await diffViewProvider.open("stale.ts")
+
+			// Simulate VS Code giving us a NEW editor object that wraps the same
+			// document -- this is the real-world stale reference scenario.
+			const freshEditorSameDoc = { document: sharedDocument }
+			selectionCallback?.({
+				textEditor: freshEditorSameDoc,
+				kind: vscode.TextEditorSelectionChangeKind.Mouse,
+			})
+
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(true)
+		})
+
+		it("open() ignores selection events on editors other than the diff editor", async () => {
+			let selectionCallback: ((event: any) => void) | undefined
+			vi.mocked(vscode.window.onDidChangeTextEditorSelection).mockImplementation((cb: any) => {
+				selectionCallback = cb
+				return { dispose: vi.fn() }
+			})
+
+			const mockEditor = {
+				document: {
+					uri: { fsPath: `${mockCwd}/other.ts`, scheme: "file" },
+					getText: vi.fn().mockReturnValue(""),
+					lineCount: 0,
+				},
+				selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+				edit: vi.fn().mockResolvedValue(true),
+				revealRange: vi.fn(),
+			}
+			vi.mocked(vscode.window).visibleTextEditors = [mockEditor as any]
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockEditor as any)
+			vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+				setTimeout(() => callback({ uri: { fsPath: `${mockCwd}/other.ts`, scheme: "file" } } as any), 0)
+				return { dispose: vi.fn() }
+			})
+			vi.mocked(vscode.window.onDidChangeVisibleTextEditors).mockReturnValue({ dispose: vi.fn() })
+			;(diffViewProvider as any).editType = "modify"
+
+			await diffViewProvider.open("other.ts")
+
+			// Fire the event with a completely different editor object.
+			const unrelatedEditor = { document: { uri: { fsPath: "/some/other/file.ts", scheme: "file" } } }
+			selectionCallback?.({ textEditor: unrelatedEditor })
+
+			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(false)
+		})
+	})
+
+	describe("scroll position precedence in showEditedFileWithoutDisruptingFocus", () => {
+		const setupForScroll = (
+			lastScrolledSource: "diff" | "targetFile" | undefined,
+			diffScrollLine: number | undefined,
+			targetFileScrollLine: number | undefined,
+			preEditScrollLine: number | undefined,
+		) => {
+			const mockRevealRange = vi.fn()
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: mockRevealRange } as any)
+			const userActiveEditor = {
+				document: { uri: { fsPath: `${mockCwd}/target.ts`, scheme: "file" } },
+				viewColumn: 1,
+			}
+			;(vscode.window as any).activeTextEditor = userActiveEditor
+			;(diffViewProvider as any).lastScrolledSource = lastScrolledSource
+			;(diffViewProvider as any).diffScrollLine = diffScrollLine
+			;(diffViewProvider as any).targetFileScrollLine = targetFileScrollLine
+			;(diffViewProvider as any).preEditScrollLine = preEditScrollLine
+			;(diffViewProvider as any).documentWasPinned = false
+			return mockRevealRange
+		}
+
+		it("uses diffScrollLine when lastScrolledSource is 'diff'", async () => {
+			const mockRevealRange = setupForScroll("diff", 20, 5, 0)
+
+			await (diffViewProvider as any).showEditedFileWithoutDisruptingFocus(`${mockCwd}/target.ts`)
+
+			expect(mockRevealRange).toHaveBeenCalledWith(
+				expect.objectContaining({ start: { line: 20, character: 0 } }),
+				vscode.TextEditorRevealType.AtTop,
+			)
+		})
+
+		it("uses targetFileScrollLine when lastScrolledSource is 'targetFile'", async () => {
+			const mockRevealRange = setupForScroll("targetFile", 20, 8, 0)
+
+			await (diffViewProvider as any).showEditedFileWithoutDisruptingFocus(`${mockCwd}/target.ts`)
+
+			expect(mockRevealRange).toHaveBeenCalledWith(
+				expect.objectContaining({ start: { line: 8, character: 0 } }),
+				vscode.TextEditorRevealType.AtTop,
+			)
+		})
+
+		it("falls back to preEditScrollLine when lastScrolledSource is undefined", async () => {
+			const mockRevealRange = setupForScroll(undefined, 20, 8, 3)
+
+			await (diffViewProvider as any).showEditedFileWithoutDisruptingFocus(`${mockCwd}/target.ts`)
+
+			expect(mockRevealRange).toHaveBeenCalledWith(
+				expect.objectContaining({ start: { line: 3, character: 0 } }),
+				vscode.TextEditorRevealType.AtTop,
+			)
+		})
+
+		it("does not call revealRange when all scroll sources are undefined", async () => {
+			const mockRevealRange = setupForScroll(undefined, undefined, undefined, undefined)
+
+			await (diffViewProvider as any).showEditedFileWithoutDisruptingFocus(`${mockCwd}/target.ts`)
+
+			expect(mockRevealRange).not.toHaveBeenCalled()
+		})
+
+		it("targetFile scroll overrides diff scroll regardless of their values", async () => {
+			// lastScrolledSource=targetFile means the user scrolled there AFTER the diff,
+			// so targetFileScrollLine must win even when diffScrollLine is higher.
+			const mockRevealRange = setupForScroll("targetFile", 100, 2, 0)
+
+			await (diffViewProvider as any).showEditedFileWithoutDisruptingFocus(`${mockCwd}/target.ts`)
+
+			expect(mockRevealRange).toHaveBeenCalledWith(
+				expect.objectContaining({ start: { line: 2, character: 0 } }),
+				vscode.TextEditorRevealType.AtTop,
+			)
+		})
+	})
+
+	describe("diffScrollListener wiring in open()", () => {
+		const openWithScrollListener = async (relPath: string) => {
+			let scrollCallback: ((event: any) => void) | undefined
+			vi.mocked(vscode.window.onDidChangeTextEditorVisibleRanges).mockImplementation((cb: any) => {
+				scrollCallback = cb
+				return { dispose: vi.fn() }
+			})
+
+			const fsPath = `${mockCwd}/${relPath}`
+			const mockEditor = {
+				document: {
+					uri: { fsPath, scheme: "file" },
+					getText: vi.fn().mockReturnValue(""),
+					lineCount: 0,
+				},
+				selection: { active: { line: 0, character: 0 }, anchor: { line: 0, character: 0 } },
+				edit: vi.fn().mockResolvedValue(true),
+				revealRange: vi.fn(),
+			}
+			vi.mocked(vscode.window).visibleTextEditors = [mockEditor as any]
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue(mockEditor as any)
+			vi.mocked(vscode.workspace.onDidOpenTextDocument).mockImplementation((callback) => {
+				setTimeout(() => callback({ uri: { fsPath, scheme: "file" } } as any), 0)
+				return { dispose: vi.fn() }
+			})
+			vi.mocked(vscode.window.onDidChangeVisibleTextEditors).mockReturnValue({ dispose: vi.fn() })
+			;(diffViewProvider as any).editType = "modify"
+
+			await diffViewProvider.open(relPath)
+			return { scrollCallback: scrollCallback!, activeDiffEditor: (diffViewProvider as any).activeDiffEditor, fsPath }
+		}
+
+		it("records diffScrollLine and sets lastScrolledSource to 'diff' on diff editor scroll", async () => {
+			const { scrollCallback, activeDiffEditor } = await openWithScrollListener("scroll-diff.ts")
+
+			scrollCallback({ textEditor: activeDiffEditor, visibleRanges: [{ start: { line: 42 } }] })
+
+			expect((diffViewProvider as any).diffScrollLine).toBe(42)
+			expect((diffViewProvider as any).lastScrolledSource).toBe("diff")
+		})
+
+		it("records targetFileScrollLine and sets lastScrolledSource to 'targetFile' on target file scroll", async () => {
+			const { scrollCallback, fsPath } = await openWithScrollListener("scroll-target.ts")
+
+			const targetFileEditor = {
+				document: { uri: { fsPath, scheme: "file" } },
+			}
+			scrollCallback({ textEditor: targetFileEditor, visibleRanges: [{ start: { line: 17 } }] })
+
+			expect((diffViewProvider as any).targetFileScrollLine).toBe(17)
+			expect((diffViewProvider as any).lastScrolledSource).toBe("targetFile")
+		})
+
+		it("ignores scroll events from unrelated editors", async () => {
+			const { scrollCallback } = await openWithScrollListener("scroll-unrelated.ts")
+
+			const unrelatedEditor = {
+				document: { uri: { fsPath: "/some/other/file.ts", scheme: "file" } },
+			}
+			scrollCallback({ textEditor: unrelatedEditor, visibleRanges: [{ start: { line: 99 } }] })
+
+			expect((diffViewProvider as any).diffScrollLine).toBeUndefined()
+			expect((diffViewProvider as any).targetFileScrollLine).toBeUndefined()
+			expect((diffViewProvider as any).lastScrolledSource).toBeUndefined()
+		})
+
+		it("lastScrolledSource reflects the most recent scroll between diff and target file", async () => {
+			const { scrollCallback, activeDiffEditor, fsPath } = await openWithScrollListener("scroll-recency.ts")
+
+			// First scroll in diff.
+			scrollCallback({ textEditor: activeDiffEditor, visibleRanges: [{ start: { line: 10 } }] })
+			expect((diffViewProvider as any).lastScrolledSource).toBe("diff")
+
+			// Then scroll in the target file -- this must win.
+			const targetFileEditor = { document: { uri: { fsPath, scheme: "file" } } }
+			scrollCallback({ textEditor: targetFileEditor, visibleRanges: [{ start: { line: 5 } }] })
+			expect((diffViewProvider as any).lastScrolledSource).toBe("targetFile")
+
+			// Back to diff again.
+			scrollCallback({ textEditor: activeDiffEditor, visibleRanges: [{ start: { line: 20 } }] })
+			expect((diffViewProvider as any).lastScrolledSource).toBe("diff")
 		})
 	})
 })

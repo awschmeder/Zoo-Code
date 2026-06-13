@@ -44,7 +44,27 @@ export class DiffViewProvider {
 	// diff session. When the file was not already open before the edit, we only
 	// keep it open afterward if the user explicitly interacted with it.
 	private userTouchedDocument = false
+	// Tracks whether the user clicked or edited inside the diff editor itself.
+	// A selection-change event fires on click/keyboard/edit but NOT on
+	// scroll, so this reliably distinguishes interaction from passive viewing.
+	// When true and the user saves (accepts) the diff, the target file tab is
+	// kept open even if it was not open before the edit began.
+	private userTouchedDiffEditor = false
+	// Tracks the most recent scroll position seen in the diff editor. Updated
+	// continuously so that when the user accepts the diff, the target file can
+	// be revealed at the same line they were viewing in the diff.
+	private diffScrollLine: number | undefined
+	// Tracks the most recent scroll position seen in the target file's own
+	// editor during the diff session. If the user opens the target file's tab
+	// and scrolls there, that position overrides the diff scroll line.
+	private targetFileScrollLine: number | undefined
+	// Records which editor (diff or the target file itself) the user scrolled
+	// most recently. The most-recently-scrolled source wins when choosing the
+	// restore scroll line.
+	private lastScrolledSource: "diff" | "targetFile" | undefined
 	private activeEditorListener?: vscode.Disposable
+	private diffEditorSelectionListener?: vscode.Disposable
+	private diffScrollListener?: vscode.Disposable
 	private deferredScrollTimer?: ReturnType<typeof setTimeout>
 	// Snapshot of unrelated preview tabs (italicized, not-yet-edited) captured at
 	// diff-open time. Opening the diff reuses the editor group's single preview
@@ -171,6 +191,49 @@ export class DiffViewProvider {
 				this.userTouchedDocument = true
 			})
 		}
+
+		// Track whether the user clicks or edits inside the diff editor.
+		// onDidChangeTextEditorSelection fires on click/keyboard/edit but NOT on
+		// scroll. We additionally filter to Mouse and Keyboard kinds to exclude
+		// programmatic selection changes (e.g. the selection anchor set by
+		// revealDiffLine / scrollToFirstDiff), which VS Code reports with kind
+		// undefined / Command and must not count as user interaction.
+		this.userTouchedDiffEditor = false
+		this.diffEditorSelectionListener = vscode.window.onDidChangeTextEditorSelection((event) => {
+			if (
+				this.activeDiffEditor &&
+				event.textEditor.document === this.activeDiffEditor.document &&
+				(event.kind === vscode.TextEditorSelectionChangeKind.Mouse ||
+					event.kind === vscode.TextEditorSelectionChangeKind.Keyboard)
+			) {
+				this.userTouchedDiffEditor = true
+			}
+		})
+
+		// Track scroll position in both the diff editor and the target file's own
+		// editor. Whichever the user scrolled most recently determines the line we
+		// reveal when we re-open the target file after the diff closes.
+		this.diffScrollLine = undefined
+		this.targetFileScrollLine = undefined
+		this.lastScrolledSource = undefined
+		this.diffScrollListener = vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
+			if (this.activeDiffEditor && event.textEditor.document === this.activeDiffEditor.document) {
+				const line = event.visibleRanges[0]?.start.line
+				if (line !== undefined) {
+					this.diffScrollLine = line
+					this.lastScrolledSource = "diff"
+				}
+			} else if (
+				event.textEditor.document.uri.scheme === "file" &&
+				arePathsEqual(event.textEditor.document.uri.fsPath, absolutePath)
+			) {
+				const line = event.visibleRanges[0]?.start.line
+				if (line !== undefined) {
+					this.targetFileScrollLine = line
+					this.lastScrolledSource = "targetFile"
+				}
+			}
+		})
 	}
 
 	async update(accumulatedContent: string, isFinal: boolean) {
@@ -277,7 +340,7 @@ export class DiffViewProvider {
 
 		await this.closeAllDiffViews()
 
-		await this.keepOrCloseEditedFile(absolutePath)
+		await this.keepOrCloseEditedFile(absolutePath, this.userTouchedDiffEditor)
 
 		// Restore any preview tabs the diff evicted, reconstructing the user's
 		// prior not-yet-edited tab state.
@@ -527,6 +590,10 @@ export class DiffViewProvider {
 	private disposeActiveEditorListener(): void {
 		this.activeEditorListener?.dispose()
 		this.activeEditorListener = undefined
+		this.diffEditorSelectionListener?.dispose()
+		this.diffEditorSelectionListener = undefined
+		this.diffScrollListener?.dispose()
+		this.diffScrollListener = undefined
 	}
 
 	// Cancel any pending deferred scroll-to-diff. Must run as soon as the user
@@ -544,8 +611,10 @@ export class DiffViewProvider {
 	// Shared accept/deny cleanup: keep the edited file open if it was already open
 	// before the edit or the user interacted with it during the diff; otherwise
 	// close the tab that was opened transiently for the diff.
-	private async keepOrCloseEditedFile(absolutePath: string): Promise<void> {
-		if (this.documentWasOpen || this.userTouchedDocument) {
+	// Pass keepIfTouchedDiff=true (from saveChanges) to also keep the file when
+	// the user clicked or edited inside the diff editor itself.
+	private async keepOrCloseEditedFile(absolutePath: string, keepIfTouchedDiff = false): Promise<void> {
+		if (this.documentWasOpen || this.userTouchedDocument || keepIfTouchedDiff) {
 			await this.showEditedFileWithoutDisruptingFocus(absolutePath)
 		} else {
 			await this.closeFileTab(absolutePath)
@@ -575,9 +644,19 @@ export class DiffViewProvider {
 			preview: false,
 			preserveFocus: !this.documentWasPinned,
 		})
-		if (this.preEditScrollLine !== undefined) {
+		// Determine the scroll line to restore. Prefer the most-recently-scrolled
+		// source: if the user scrolled in the diff, reveal that line; if they
+		// scrolled in the target file's own editor, use that position; otherwise
+		// fall back to the scroll position the file had before the edit began.
+		const restoreScrollLine =
+			this.lastScrolledSource === "targetFile"
+				? this.targetFileScrollLine
+				: this.lastScrolledSource === "diff"
+					? this.diffScrollLine
+					: this.preEditScrollLine
+		if (restoreScrollLine !== undefined) {
 			editor.revealRange(
-				new vscode.Range(this.preEditScrollLine, 0, this.preEditScrollLine, 0),
+				new vscode.Range(restoreScrollLine, 0, restoreScrollLine, 0),
 				vscode.TextEditorRevealType.AtTop,
 			)
 		}
@@ -953,7 +1032,11 @@ export class DiffViewProvider {
 		this.streamedLines = []
 		this.preDiagnostics = []
 		this.preEditScrollLine = undefined
+		this.diffScrollLine = undefined
+		this.targetFileScrollLine = undefined
+		this.lastScrolledSource = undefined
 		this.userTouchedDocument = false
+		this.userTouchedDiffEditor = false
 		this.snapshotPreviewTabs = []
 		this.disposeActiveEditorListener()
 	}
