@@ -274,6 +274,14 @@ const TaskHeader = ({
 								</>
 							)}
 						</div>
+						<div className="flex items-center gap-1 ml-8 w-60 min-w-[120px] shrink">
+							<ContextWindowProgress
+								contextWindow={contextWindow}
+								contextTokens={contextTokens || 0}
+								maxTokens={maxTokens || undefined}
+							/>
+							{condenseButton}
+						</div>
 					</div>
 				)}
 				{/* Expanded state: Show task text and images */}

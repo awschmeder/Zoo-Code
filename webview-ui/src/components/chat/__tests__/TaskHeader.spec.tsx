@@ -133,13 +133,20 @@ describe("TaskHeader", () => {
 		expect(screen.queryByText(/\$/)).not.toBeInTheDocument()
 	})
 
+	it("should render the condense context button in the collapsed state", () => {
+		renderTaskHeader()
+		// Button is visible without expanding the task header
+		const buttons = screen.getAllByRole("button")
+		const condenseButton = buttons.find((button) => button.querySelector("svg.lucide-fold-vertical"))
+		expect(condenseButton).toBeDefined()
+		expect(condenseButton?.querySelector("svg")).toBeInTheDocument()
+	})
+
 	it("should render the condense context button when expanded", () => {
 		renderTaskHeader()
-		// First click to expand the task header
 		const taskHeader = screen.getByText("Test task")
 		fireEvent.click(taskHeader)
 
-		// Now find the condense button in the expanded state
 		const buttons = screen.getAllByRole("button")
 		const condenseButton = buttons.find((button) => button.querySelector("svg.lucide-fold-vertical"))
 		expect(condenseButton).toBeDefined()
@@ -150,11 +157,7 @@ describe("TaskHeader", () => {
 		const handleCondenseContext = vi.fn()
 		renderTaskHeader({ handleCondenseContext })
 
-		// First click to expand the task header
-		const taskHeader = screen.getByText("Test task")
-		fireEvent.click(taskHeader)
-
-		// Find the button that contains the FoldVertical icon
+		// Button is clickable in collapsed state without expanding first
 		const buttons = screen.getAllByRole("button")
 		const condenseButton = buttons.find((button) => button.querySelector("svg.lucide-fold-vertical"))
 		expect(condenseButton).toBeDefined()
@@ -166,11 +169,7 @@ describe("TaskHeader", () => {
 		const handleCondenseContext = vi.fn()
 		renderTaskHeader({ buttonsDisabled: true, handleCondenseContext })
 
-		// First click to expand the task header
-		const taskHeader = screen.getByText("Test task")
-		fireEvent.click(taskHeader)
-
-		// Find the button that contains the FoldVertical icon
+		// Button is disabled in collapsed state without expanding first
 		const buttons = screen.getAllByRole("button")
 		const condenseButton = buttons.find((button) => button.querySelector("svg.lucide-fold-vertical"))
 		expect(condenseButton).toBeDefined()
