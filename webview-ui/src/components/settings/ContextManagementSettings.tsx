@@ -28,6 +28,7 @@ import { vscode } from "@/utils/vscode"
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
+	autoCondenseContextProfileId?: string | null
 	listApiConfigMeta: any[]
 	maxOpenTabsContext: number
 	maxWorkspaceFiles: number
@@ -47,6 +48,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
+		| "autoCondenseContextProfileId"
 		| "maxOpenTabsContext"
 		| "maxWorkspaceFiles"
 		| "showRooIgnoredFiles"
@@ -66,6 +68,7 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 export const ContextManagementSettings = ({
 	autoCondenseContext,
 	autoCondenseContextPercent,
+	autoCondenseContextProfileId,
 	listApiConfigMeta,
 	maxOpenTabsContext,
 	maxWorkspaceFiles,
@@ -485,77 +488,118 @@ export const ContextManagementSettings = ({
 					</VSCodeCheckbox>
 				</SearchableSetting>
 				{autoCondenseContext && (
-					<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
-						<div className="flex items-center gap-4 font-bold">
-							<FoldVertical size={16} />
-							<div>{t("settings:contextManagement.condensingThreshold.label")}</div>
+					<div className="flex flex-col gap-3">
+						{/* Indented Block for Threshold Settings */}
+						<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
+							<div className="flex items-center gap-4 font-bold">
+								<FoldVertical size={16} />
+								<div>{t("settings:contextManagement.condensingThreshold.label")}</div>
+							</div>
+							<div>
+								<Select
+									value={selectedThresholdProfile || "default"}
+									onValueChange={(value) => {
+										setSelectedThresholdProfile(value)
+									}}
+									data-testid="threshold-profile-select">
+									<SelectTrigger className="w-full">
+										<SelectValue
+											placeholder={
+												t("settings:contextManagement.condensingThreshold.selectProfile") ||
+												"Select profile for threshold"
+											}
+										/>
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="default">
+											{t("settings:contextManagement.condensingThreshold.defaultProfile") ||
+												"Default (applies to all unconfigured profiles)"}
+										</SelectItem>
+										{(listApiConfigMeta || []).map((config) => {
+											const profileThreshold = profileThresholds[config.id]
+											const thresholdDisplay =
+												profileThreshold !== undefined
+													? profileThreshold === -1
+														? ` ${t(
+																"settings:contextManagement.condensingThreshold.usesGlobal",
+																{
+																	threshold: autoCondenseContextPercent,
+																},
+															)}`
+														: ` (${profileThreshold}%)`
+													: ""
+											return (
+												<SelectItem key={config.id} value={config.id}>
+													{config.name}
+													{thresholdDisplay}
+												</SelectItem>
+											)
+										})}
+									</SelectContent>
+								</Select>
+							</div>
+
+							{/* Threshold Slider */}
+							<div>
+								<div className="flex items-center gap-2">
+									<Slider
+										min={10}
+										max={100}
+										step={1}
+										value={[getCurrentThresholdValue()]}
+										onValueChange={([value]) => handleThresholdChange(value)}
+										data-testid="condense-threshold-slider"
+									/>
+									<span className="w-20">{getCurrentThresholdValue()}%</span>
+								</div>
+								<div className="text-vscode-descriptionForeground text-sm mt-1">
+									{selectedThresholdProfile === "default"
+										? t("settings:contextManagement.condensingThreshold.defaultDescription", {
+												threshold: autoCondenseContextPercent,
+											})
+										: t("settings:contextManagement.condensingThreshold.profileDescription")}
+								</div>
+							</div>
 						</div>
-						<div>
+					</div>
+				)}
+				{autoCondenseContext && (
+					/* Compaction Profile Selection */
+					<SearchableSetting
+						settingId="context-condensing-api-configuration"
+						section="contextManagement"
+						label={t("settings:contextManagement.condensingApiConfiguration.label")}>
+						<div className="flex flex-col gap-2 mt-3">
+							<span className="font-bold">{t("settings:contextManagement.condensingApiConfiguration.label")}</span>
 							<Select
-								value={selectedThresholdProfile || "default"}
+								value={autoCondenseContextProfileId || "active"}
 								onValueChange={(value) => {
-									setSelectedThresholdProfile(value)
+									setCachedStateField("autoCondenseContextProfileId", value === "active" ? undefined : value)
 								}}
-								data-testid="threshold-profile-select">
+								data-testid="compaction-profile-select">
 								<SelectTrigger className="w-full">
 									<SelectValue
 										placeholder={
-											t("settings:contextManagement.condensingThreshold.selectProfile") ||
-											"Select profile for threshold"
+											t("settings:contextManagement.condensingApiConfiguration.useCurrentConfig")
 										}
 									/>
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="default">
-										{t("settings:contextManagement.condensingThreshold.defaultProfile") ||
-											"Default (applies to all unconfigured profiles)"}
+									<SelectItem value="active">
+										{t("settings:contextManagement.condensingApiConfiguration.useCurrentConfig")}
 									</SelectItem>
-									{(listApiConfigMeta || []).map((config) => {
-										const profileThreshold = profileThresholds[config.id]
-										const thresholdDisplay =
-											profileThreshold !== undefined
-												? profileThreshold === -1
-													? ` ${t(
-															"settings:contextManagement.condensingThreshold.usesGlobal",
-															{
-																threshold: autoCondenseContextPercent,
-															},
-														)}`
-													: ` (${profileThreshold}%)`
-												: ""
-										return (
-											<SelectItem key={config.id} value={config.id}>
-												{config.name}
-												{thresholdDisplay}
-											</SelectItem>
-										)
-									})}
+									{(listApiConfigMeta || []).map((config) => (
+										<SelectItem key={config.id} value={config.id}>
+											{config.name}
+										</SelectItem>
+									))}
 								</SelectContent>
 							</Select>
-						</div>
-
-						{/* Threshold Slider */}
-						<div>
-							<div className="flex items-center gap-2">
-								<Slider
-									min={10}
-									max={100}
-									step={1}
-									value={[getCurrentThresholdValue()]}
-									onValueChange={([value]) => handleThresholdChange(value)}
-									data-testid="condense-threshold-slider"
-								/>
-								<span className="w-20">{getCurrentThresholdValue()}%</span>
-							</div>
-							<div className="text-vscode-descriptionForeground text-sm mt-1">
-								{selectedThresholdProfile === "default"
-									? t("settings:contextManagement.condensingThreshold.defaultDescription", {
-											threshold: autoCondenseContextPercent,
-										})
-									: t("settings:contextManagement.condensingThreshold.profileDescription")}
+							<div className="text-vscode-descriptionForeground text-sm">
+								{t("settings:contextManagement.condensingApiConfiguration.description")}
 							</div>
 						</div>
-					</div>
+					</SearchableSetting>
 				)}
 			</Section>
 		</div>

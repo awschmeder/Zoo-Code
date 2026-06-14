@@ -1877,6 +1877,94 @@ describe("Queued message processing after condense", () => {
 	})
 })
 
+describe("Compaction Profile API Handler Resolution", () => {
+	function createProvider(state: any = {}): any {
+		const storageUri = { fsPath: path.join(os.tmpdir(), "test-storage") }
+		const ctx = {
+			globalState: {
+				get: vi.fn().mockImplementation((_key: keyof GlobalState) => undefined),
+				update: vi.fn().mockResolvedValue(undefined),
+				keys: vi.fn().mockReturnValue([]),
+			},
+			globalStorageUri: storageUri,
+			workspaceState: {
+				get: vi.fn().mockImplementation((_key) => undefined),
+				update: vi.fn().mockResolvedValue(undefined),
+				keys: vi.fn().mockReturnValue([]),
+			},
+			secrets: {
+				get: vi.fn().mockResolvedValue(undefined),
+				store: vi.fn().mockResolvedValue(undefined),
+				delete: vi.fn().mockResolvedValue(undefined),
+			},
+			extensionUri: { fsPath: "/mock/extension/path" },
+			extension: { packageJSON: { version: "1.0.0" } },
+		} as unknown as vscode.ExtensionContext
+
+		const output = {
+			appendLine: vi.fn(),
+			append: vi.fn(),
+			clear: vi.fn(),
+			show: vi.fn(),
+			hide: vi.fn(),
+			dispose: vi.fn(),
+		}
+
+		const provider = new ClineProvider(ctx, output as any, "sidebar", new ContextProxy(ctx)) as any
+		provider.postMessageToWebview = vi.fn().mockResolvedValue(undefined)
+		provider.postStateToWebview = vi.fn().mockResolvedValue(undefined)
+		provider.postStateToWebviewWithoutTaskHistory = vi.fn().mockResolvedValue(undefined)
+		provider.getState = vi.fn().mockResolvedValue(state)
+		provider.providerSettingsManager = {
+			getProfile: vi.fn().mockImplementation(async ({ id }) => {
+				if (id === "custom-compaction-profile") {
+					return {
+						id: "custom-compaction-profile",
+						apiProvider: "openai",
+						openAiModelId: "gpt-4o-mini",
+						openAiApiKey: "custom-key",
+					}
+				}
+				return null
+			}),
+		}
+		return provider
+	}
+
+	const apiConfig: ProviderSettings = {
+		apiProvider: "anthropic",
+		apiModelId: "claude-3-5-sonnet-20241022",
+		apiKey: "test-api-key",
+	} as any
+
+	it("resolves to primary api handler when autoCondenseContextProfileId is not set", async () => {
+		const provider = createProvider({ autoCondenseContextProfileId: undefined })
+		const task = new Task({
+			provider,
+			apiConfiguration: apiConfig,
+			task: "test task",
+			startTask: false,
+		})
+
+		const compactionApiHandler = await (task as any).getCompactionApiHandler({ autoCondenseContextProfileId: undefined })
+		expect(compactionApiHandler).toBe(task.api)
+	})
+
+	it("resolves to the custom profile handler when autoCondenseContextProfileId is configured", async () => {
+		const provider = createProvider({ autoCondenseContextProfileId: "custom-compaction-profile" })
+		const task = new Task({
+			provider,
+			apiConfiguration: apiConfig,
+			task: "test task",
+			startTask: false,
+		})
+
+		const compactionApiHandler = await (task as any).getCompactionApiHandler({ autoCondenseContextProfileId: "custom-compaction-profile" })
+		expect(compactionApiHandler).not.toBe(task.api)
+		expect(compactionApiHandler.getModel().id).toBe("gpt-4o-mini")
+	})
+})
+
 describe("pushToolResultToUserContent", () => {
 	let mockProvider: any
 	let mockApiConfig: ProviderSettings

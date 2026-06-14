@@ -1572,6 +1572,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		const filesReadByRoo = await this.getFilesReadByRooSafely("condenseContext")
 
+		const compactionApiHandler = await this.getCompactionApiHandler(state)
+
 		const {
 			messages,
 			summary,
@@ -1582,7 +1584,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			condenseId,
 		} = await summarizeConversation({
 			messages: this.apiConversationHistory,
-			apiHandler: this.api,
+			apiHandler: compactionApiHandler,
 			systemPrompt,
 			taskId: this.taskId,
 			isAutomaticTrigger: false,
@@ -3718,6 +3720,24 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		)
 	}
 
+	private async getCompactionApiHandler(state: any): Promise<ApiHandler> {
+		const profileId = state?.autoCondenseContextProfileId
+		if (profileId) {
+			const provider = this.providerRef.deref()
+			if (provider) {
+				try {
+					const profile = await provider.providerSettingsManager.getProfile({ id: profileId })
+					if (profile) {
+						return buildApiHandler(profile)
+					}
+				} catch (error) {
+					console.error(`[Task#${this.taskId}] Failed to load custom compaction profile:`, error)
+				}
+			}
+		}
+		return this.api
+	}
+
 	private async handleContextWindowExceededError(): Promise<void> {
 		const state = await this.providerRef.deref()?.getState()
 		const { profileThresholds = {}, mode, apiConfiguration } = state ?? {}
@@ -3780,13 +3800,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Generate environment details to include in the condensed summary
 			const environmentDetails = await getEnvironmentDetails(this, true)
 
+			const compactionApiHandler = await this.getCompactionApiHandler(state)
+
 			// Force aggressive truncation by keeping only 75% of the conversation history
 			const truncateResult = await manageContext({
 				messages: this.apiConversationHistory,
 				totalTokens: contextTokens || 0,
 				maxTokens,
 				contextWindow,
-				apiHandler: this.api,
+				apiHandler: compactionApiHandler,
 				autoCondenseContext: true,
 				autoCondenseContextPercent: FORCED_CONTEXT_REDUCTION_PERCENT,
 				systemPrompt: await this.getSystemPrompt(),
@@ -4005,12 +4027,14 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					: undefined
 
 			try {
+				const compactionApiHandler = await this.getCompactionApiHandler(state)
+
 				const truncateResult = await manageContext({
 					messages: this.apiConversationHistory,
 					totalTokens: contextTokens,
 					maxTokens,
 					contextWindow,
-					apiHandler: this.api,
+					apiHandler: compactionApiHandler,
 					autoCondenseContext,
 					autoCondenseContextPercent,
 					systemPrompt,
