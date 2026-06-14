@@ -659,7 +659,14 @@
 			"defaultDescription": "Khi ngữ cảnh đạt đến tỷ lệ phần trăm này, nó sẽ được tự động nén cho tất cả hồ sơ trừ khi chúng có cài đặt tùy chỉnh",
 			"profileDescription": "Ngưỡng tùy chỉnh chỉ cho hồ sơ này (ghi đè mặc định toàn cục)",
 			"inheritDescription": "Hồ sơ này kế thừa ngưỡng mặc định toàn cục ({{threshold}}%)",
-			"usesGlobal": "(sử dụng toàn cục {{threshold}}%)"
+			"usesGlobal": "(sử dụng toàn cục {{threshold}}%)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "Kích thước tối đa của tệp hình ảnh",

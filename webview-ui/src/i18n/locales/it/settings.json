@@ -659,7 +659,14 @@
 			"defaultDescription": "Quando il contesto raggiunge questa percentuale, verrà automaticamente condensato per tutti i profili a meno che non abbiano impostazioni personalizzate",
 			"profileDescription": "Soglia personalizzata solo per questo profilo (sovrascrive il predefinito globale)",
 			"inheritDescription": "Questo profilo eredita la soglia predefinita globale ({{threshold}}%)",
-			"usesGlobal": "(usa globale {{threshold}}%)"
+			"usesGlobal": "(usa globale {{threshold}}%)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "Dimensione massima file immagine",

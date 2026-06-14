@@ -659,7 +659,14 @@
 			"defaultDescription": "Gdy kontekst osiągnie ten procent, zostanie automatycznie skondensowany dla wszystkich profili, chyba że mają niestandardowe ustawienia",
 			"profileDescription": "Niestandardowy próg tylko dla tego profilu (zastępuje globalny domyślny)",
 			"inheritDescription": "Ten profil dziedziczy globalny domyślny próg ({{threshold}}%)",
-			"usesGlobal": "(używa globalnego {{threshold}}%)"
+			"usesGlobal": "(używa globalnego {{threshold}}%)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "Maksymalny rozmiar pliku obrazu",

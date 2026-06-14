@@ -659,7 +659,14 @@
 			"defaultDescription": "Bağlam bu yüzdeye ulaştığında, özel ayarları olmadıkça tüm profiller için otomatik olarak sıkıştırılacak",
 			"profileDescription": "Sadece bu profil için özel eşik (küresel varsayılanı geçersiz kılar)",
 			"inheritDescription": "Bu profil küresel varsayılan eşiği miras alır ({{threshold}}%)",
-			"usesGlobal": "(küresel {{threshold}}% kullanır)"
+			"usesGlobal": "(küresel {{threshold}}% kullanır)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "Maksimum görüntü dosyası boyutu",

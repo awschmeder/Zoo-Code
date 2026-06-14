@@ -659,7 +659,14 @@
 			"defaultDescription": "컨텍스트가 이 비율에 도달하면 사용자 정의 설정이 없는 한 모든 프로필에 대해 자동으로 압축됩니다",
 			"profileDescription": "이 프로필만을 위한 사용자 정의 임계값 (글로벌 기본값 재정의)",
 			"inheritDescription": "이 프로필은 글로벌 기본 임계값을 상속합니다 ({{threshold}}%)",
-			"usesGlobal": "(글로벌 {{threshold}}% 사용)"
+			"usesGlobal": "(글로벌 {{threshold}}% 사용)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "최대 이미지 파일 크기",

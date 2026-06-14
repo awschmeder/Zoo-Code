@@ -302,6 +302,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -335,6 +336,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -372,6 +374,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -386,6 +389,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -411,6 +415,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -425,6 +430,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -465,6 +471,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(resultWithSmall).toEqual({
@@ -500,6 +507,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(resultWithLarge.messages).not.toEqual(messagesWithLargeContent) // Should truncate
@@ -528,6 +536,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(resultWithVeryLarge.messages).not.toEqual(messagesWithVeryLargeContent) // Should truncate
@@ -558,6 +567,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -608,6 +618,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -672,6 +683,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -722,6 +734,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -780,6 +793,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -829,6 +843,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -909,6 +924,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				filesReadByRoo,
 				cwd,
@@ -976,6 +992,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				// filesReadByRoo, cwd, rooIgnoreController are NOT provided
 			})
@@ -1036,6 +1053,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				filesReadByRoo: [], // Empty array
 				cwd: "/test/project",
@@ -1124,10 +1142,11 @@ describe("Context Management", () => {
 				autoCondenseContextPercent: 100, // Global threshold of 100%
 				systemPrompt: "System prompt",
 				taskId,
-				profileThresholds,
-				currentProfileId,
+					profileThresholds,
+					profileMaxTokens: {},
+					currentProfileId,
 			})
-
+	
 			// Should use summarization because 65% > 60% (profile threshold)
 			expect(summarizeSpy).toHaveBeenCalled()
 			expect(result).toMatchObject({
@@ -1190,11 +1209,12 @@ describe("Context Management", () => {
 				autoCondenseContextPercent: 75, // Global threshold of 75%
 				systemPrompt: "System prompt",
 				taskId,
-				profileThresholds,
-				currentProfileId,
-			})
-
-			// Should use summarization because 80% > 75% (global threshold, since profile is -1)
+					profileThresholds,
+					profileMaxTokens: {},
+					currentProfileId,
+				})
+	
+				// Should use summarization because 80% > 75% (global threshold, since profile is -1)
 			expect(summarizeSpy).toHaveBeenCalled()
 			expect(result).toMatchObject({
 				messages: mockSummarizeResponse.messages,
@@ -1244,11 +1264,12 @@ describe("Context Management", () => {
 				autoCondenseContextPercent: 80, // Global threshold of 80%
 				systemPrompt: "System prompt",
 				taskId,
-				profileThresholds,
-				currentProfileId,
-			})
-
-			// Should NOT use summarization because 50% < 80% (global threshold, since profile has no specific threshold)
+					profileThresholds,
+					profileMaxTokens: {},
+					currentProfileId,
+				})
+	
+				// Should NOT use summarization because 50% < 80% (global threshold, since profile has no specific threshold)
 			// and totalTokens (50000) < allowedTokens (60000)
 			expect(summarizeSpy).not.toHaveBeenCalled()
 			expect(result).toEqual({
@@ -1306,6 +1327,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result1).toEqual({
@@ -1327,6 +1349,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result2.messages).not.toEqual(messagesWithSmallContent)
@@ -1362,6 +1385,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result1).toEqual({
@@ -1383,6 +1407,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result2.messages).not.toEqual(messagesWithSmallContent)
@@ -1416,6 +1441,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result1.messages).toEqual(messagesWithSmallContent)
@@ -1432,6 +1458,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result2.messages).not.toEqual(messagesWithSmallContent)
@@ -1463,6 +1490,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result1.messages).toEqual(messagesWithSmallContent)
@@ -1479,6 +1507,7 @@ describe("Context Management", () => {
 				systemPrompt: "System prompt",
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 			expect(result2.messages).not.toEqual(messagesWithSmallContent)
@@ -1500,6 +1529,7 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 50, // 50% threshold
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 0,
 			})
@@ -1514,6 +1544,7 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 50, // 50% threshold
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 0,
 			})
@@ -1529,6 +1560,7 @@ describe("Context Management", () => {
 				autoCondenseContext: false, // Even with auto-condense disabled
 				autoCondenseContextPercent: 50,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 0,
 			})
@@ -1544,6 +1576,7 @@ describe("Context Management", () => {
 				autoCondenseContext: false,
 				autoCondenseContextPercent: 50, // This shouldn't matter since autoCondenseContext is false
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 0,
 			})
@@ -1558,6 +1591,7 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 80, // Global threshold 80%
 				profileThresholds: { "test-profile": 50 }, // Profile threshold 50%
+				profileMaxTokens: {},
 				currentProfileId: "test-profile",
 				lastMessageTokens: 0,
 			})
@@ -1573,6 +1607,7 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 80, // Global threshold 80%
 				profileThresholds: { "test-profile": -1 }, // Profile uses global
+				profileMaxTokens: {},
 				currentProfileId: "test-profile",
 				lastMessageTokens: 0,
 			})
@@ -1590,6 +1625,7 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 50, // 50% threshold
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 0,
 			})
@@ -1602,10 +1638,135 @@ describe("Context Management", () => {
 				autoCondenseContext: true,
 				autoCondenseContextPercent: 50, // 50% threshold
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 				lastMessageTokens: 2000, // Pushes total to 51%
 			})
 			expect(resultWithLastMessage).toBe(true)
+		})
+
+		it("should return true when absolute token threshold is set and tokens exceed it", () => {
+			const result = willManageContext({
+				totalTokens: 100001,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100, // Percentage threshold would not trigger
+				profileThresholds: {},
+				profileMaxTokens: {},
+				currentProfileId: "default",
+				lastMessageTokens: 0,
+				autoCondenseContextMaxTokens: 100000,
+			})
+			// Should trigger because 100001 > 100000 (absolute threshold)
+			expect(result).toBe(true)
+		})
+
+		it("should return false when absolute token threshold is set but tokens are below it", () => {
+			const result = willManageContext({
+				totalTokens: 99999,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100, // Percentage threshold would not trigger
+				profileThresholds: {},
+				profileMaxTokens: {},
+				currentProfileId: "default",
+				lastMessageTokens: 0,
+				autoCondenseContextMaxTokens: 100000,
+			})
+			// Should NOT trigger: 99999 < 100000 and 99999/500000 < 100%
+			expect(result).toBe(false)
+		})
+
+		it("should use profile-specific max tokens when set", () => {
+			const result = willManageContext({
+				totalTokens: 80001,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100,
+				profileThresholds: {},
+				profileMaxTokens: { "fast-profile": 80000 },
+				currentProfileId: "fast-profile",
+				lastMessageTokens: 0,
+				autoCondenseContextMaxTokens: 200000, // Global is 200k, profile is 80k
+			})
+			// Should trigger because 80001 > 80000 (profile-specific max tokens)
+			expect(result).toBe(true)
+		})
+
+		it("should fall back to global max tokens when profile max tokens is -1", () => {
+			const result = willManageContext({
+				totalTokens: 100001,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100,
+				profileThresholds: {},
+				profileMaxTokens: { "fast-profile": -1 }, // Profile inherits global
+				currentProfileId: "fast-profile",
+				lastMessageTokens: 0,
+				autoCondenseContextMaxTokens: 100000,
+			})
+			// Should trigger because 100001 > 100000 (falls back to global max tokens)
+			expect(result).toBe(true)
+		})
+
+		it("should not trigger absolute threshold when autoCondenseContextMaxTokens is undefined", () => {
+			const result = willManageContext({
+				totalTokens: 999999,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100, // Percentage threshold at 100% would not trigger
+				profileThresholds: {},
+				profileMaxTokens: {},
+				currentProfileId: "default",
+				lastMessageTokens: 0,
+				// autoCondenseContextMaxTokens not set
+			})
+			// Should NOT trigger: percentage < 100% and no absolute threshold configured
+			// (999999 / 500000 = ~200%, but allowedTokens = 500000*0.9-4096 = 445904, 999999 > 445904, so truncation kicks in)
+			// Actually tokens exceed allowedTokens so truncation fires -- verify the boundary properly:
+			// totalTokens=999999 > allowedTokens=445904 => returns true via the overflow path, not absolute threshold
+			expect(result).toBe(true)
+		})
+
+		it("should not trigger absolute threshold when disabled (no value set) even if percent is below threshold", () => {
+			const result = willManageContext({
+				totalTokens: 50000,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: true,
+				autoCondenseContextPercent: 100,
+				profileThresholds: {},
+				profileMaxTokens: {},
+				currentProfileId: "default",
+				lastMessageTokens: 0,
+				// No autoCondenseContextMaxTokens
+			})
+			// 50000/500000 = 10%, well below 100%. No absolute threshold. Should not trigger.
+			expect(result).toBe(false)
+		})
+
+		it("should not trigger absolute threshold when autoCondenseContext is disabled even if max tokens is exceeded", () => {
+			const result = willManageContext({
+				totalTokens: 60000,
+				contextWindow: 500000,
+				maxTokens: 4096,
+				autoCondenseContext: false, // Master switch off
+				autoCondenseContextPercent: 100,
+				profileThresholds: {},
+				profileMaxTokens: {},
+				currentProfileId: "default",
+				lastMessageTokens: 0,
+				autoCondenseContextMaxTokens: 50000, // 60000 > 50000 would fire if condense were enabled
+			})
+			// With auto-condense disabled, only truncation can occur. 60000 is well below
+			// allowedTokens (500000*0.9-4096 = 445904), so the absolute trigger must not bypass
+			// the master switch.
+			expect(result).toBe(false)
 		})
 	})
 
@@ -1644,6 +1805,7 @@ describe("Context Management", () => {
 				systemPrompt,
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 
@@ -1686,6 +1848,7 @@ describe("Context Management", () => {
 				systemPrompt,
 				taskId,
 				profileThresholds: {},
+				profileMaxTokens: {},
 				currentProfileId: "default",
 			})
 

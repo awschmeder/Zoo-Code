@@ -118,6 +118,7 @@ export const globalSettingsSchema = z.object({
 	allowedMaxCost: z.number().nullish(),
 	autoCondenseContext: z.boolean().optional(),
 	autoCondenseContextPercent: z.number().optional(),
+	autoCondenseContextMaxTokens: z.number().nullish(),
 
 	/**
 	 * Whether to include current time in the environment details
@@ -215,6 +216,7 @@ export const globalSettingsSchema = z.object({
 	 */
 	enterBehavior: z.enum(["send", "newline"]).optional(),
 	profileThresholds: z.record(z.string(), z.number()).optional(),
+	profileMaxTokens: z.record(z.string(), z.number()).optional(),
 	hasOpenedModeSelector: z.boolean().optional(),
 	lastModeExportPath: z.string().optional(),
 	lastModeImportPath: z.string().optional(),

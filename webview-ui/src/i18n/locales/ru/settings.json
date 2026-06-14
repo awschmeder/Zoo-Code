@@ -659,7 +659,14 @@
 			"defaultDescription": "Когда контекст достигнет этого процента, он будет автоматически сжат для всех профилей, если у них нет пользовательских настроек",
 			"profileDescription": "Пользовательский порог только для этого профиля (переопределяет глобальный по умолчанию)",
 			"inheritDescription": "Этот профиль наследует глобальный порог по умолчанию ({{threshold}}%)",
-			"usesGlobal": "(использует глобальный {{threshold}}%)"
+			"usesGlobal": "(использует глобальный {{threshold}}%)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "Максимальный размер файла изображения",

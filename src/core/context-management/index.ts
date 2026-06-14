@@ -147,6 +147,33 @@ export type WillManageContextOptions = {
 	profileThresholds: Record<string, number>
 	currentProfileId: string
 	lastMessageTokens: number
+	autoCondenseContextMaxTokens?: number | null
+	profileMaxTokens: Record<string, number>
+}
+
+/**
+ * Resolves the effective absolute token threshold for the current profile.
+ * A profile value of -1 signals "inherit from global". Missing or zero values fall back to global.
+ */
+function resolveEffectiveMaxTokens(
+	globalMax: number | null | undefined,
+	profileMaxTokens: Record<string, number>,
+	currentProfileId: string,
+): number | null | undefined {
+	const profileMax = profileMaxTokens[currentProfileId]
+	if (profileMax === undefined) {
+		return globalMax
+	}
+	if (profileMax === -1) {
+		return globalMax
+	}
+	if (profileMax > 0) {
+		return profileMax
+	}
+	console.warn(
+		`Invalid profileMaxTokens value ${profileMax} for profile "${currentProfileId}". Using global default.`,
+	)
+	return globalMax
 }
 
 /**
@@ -167,6 +194,8 @@ export function willManageContext({
 	profileThresholds,
 	currentProfileId,
 	lastMessageTokens,
+	autoCondenseContextMaxTokens,
+	profileMaxTokens,
 }: WillManageContextOptions): boolean {
 	if (!autoCondenseContext) {
 		// When auto-condense is disabled, only truncation can occur
@@ -192,8 +221,12 @@ export function willManageContext({
 		// Invalid values fall back to global setting (effectiveThreshold already set)
 	}
 
+	const effectiveMaxTokens = resolveEffectiveMaxTokens(autoCondenseContextMaxTokens, profileMaxTokens, currentProfileId)
+
 	const contextPercent = (100 * prevContextTokens) / contextWindow
-	return contextPercent >= effectiveThreshold || prevContextTokens > allowedTokens
+	const meetsPercentageThreshold = contextPercent >= effectiveThreshold
+	const meetsMaxTokenThreshold = effectiveMaxTokens != null && prevContextTokens >= effectiveMaxTokens
+	return meetsPercentageThreshold || meetsMaxTokenThreshold || prevContextTokens > allowedTokens
 }
 
 /**
@@ -219,6 +252,8 @@ export type ContextManagementOptions = {
 	customCondensingPrompt?: string
 	profileThresholds: Record<string, number>
 	currentProfileId: string
+	autoCondenseContextMaxTokens?: number | null
+	profileMaxTokens: Record<string, number>
 	/** Optional metadata to pass through to the condensing API call (tools, taskId, etc.) */
 	metadata?: ApiHandlerCreateMessageMetadata
 	/** Optional environment details string to include in the condensed summary */
@@ -257,6 +292,8 @@ export async function manageContext({
 	customCondensingPrompt,
 	profileThresholds,
 	currentProfileId,
+	autoCondenseContextMaxTokens,
+	profileMaxTokens,
 	metadata,
 	environmentDetails,
 	filesReadByRoo,
@@ -303,9 +340,13 @@ export async function manageContext({
 	}
 	// If no specific threshold is found for the profile, fall back to global setting
 
+	const effectiveMaxTokens = resolveEffectiveMaxTokens(autoCondenseContextMaxTokens, profileMaxTokens, currentProfileId)
+
 	if (autoCondenseContext) {
 		const contextPercent = (100 * prevContextTokens) / contextWindow
-		if (contextPercent >= effectiveThreshold || prevContextTokens > allowedTokens) {
+		const meetsPercentageThreshold = contextPercent >= effectiveThreshold
+		const meetsMaxTokenThreshold = effectiveMaxTokens != null && prevContextTokens >= effectiveMaxTokens
+		if (meetsPercentageThreshold || meetsMaxTokenThreshold || prevContextTokens > allowedTokens) {
 			// Attempt to intelligently condense the context
 			const result = await summarizeConversation({
 				messages,

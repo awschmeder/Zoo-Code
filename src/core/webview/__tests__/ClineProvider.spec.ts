@@ -667,6 +667,7 @@ describe("ClineProvider", () => {
 			sharingEnabled: false,
 			publicSharingEnabled: false,
 			profileThresholds: {},
+			profileMaxTokens: {},
 			hasOpenedModeSelector: false,
 			diagnosticsEnabled: true,
 			openRouterImageApiKey: undefined,

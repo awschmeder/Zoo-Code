@@ -3720,7 +3720,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 	private async handleContextWindowExceededError(): Promise<void> {
 		const state = await this.providerRef.deref()?.getState()
-		const { profileThresholds = {}, mode, apiConfiguration } = state ?? {}
+		const {
+			profileThresholds = {},
+			profileMaxTokens = {},
+			autoCondenseContextMaxTokens,
+			mode,
+			apiConfiguration,
+		} = state ?? {}
 
 		const { contextTokens } = this.getTokenUsage()
 		const modelInfo = this.api.getModel().info
@@ -3792,6 +3798,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				systemPrompt: await this.getSystemPrompt(),
 				taskId: this.taskId,
 				profileThresholds,
+				profileMaxTokens,
+				autoCondenseContextMaxTokens,
 				currentProfileId,
 				metadata,
 				environmentDetails,
@@ -3891,6 +3899,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			autoCondenseContext = true,
 			autoCondenseContextPercent = 100,
 			profileThresholds = {},
+			profileMaxTokens = {},
+			autoCondenseContextMaxTokens,
 		} = state ?? {}
 
 		// Get condensing configuration for automatic triggers.
@@ -3944,6 +3954,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				autoCondenseContext,
 				autoCondenseContextPercent,
 				profileThresholds,
+				profileMaxTokens,
+				autoCondenseContextMaxTokens,
 				currentProfileId,
 				lastMessageTokens,
 			})
@@ -4017,6 +4029,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					taskId: this.taskId,
 					customCondensingPrompt,
 					profileThresholds,
+					profileMaxTokens,
+					autoCondenseContextMaxTokens,
 					currentProfileId,
 					metadata: contextMgmtMetadata,
 					environmentDetails: contextMgmtEnvironmentDetails,

@@ -28,6 +28,8 @@ import { vscode } from "@/utils/vscode"
 type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	autoCondenseContext: boolean
 	autoCondenseContextPercent: number
+	autoCondenseContextMaxTokens?: number | null
+	profileMaxTokens?: Record<string, number>
 	listApiConfigMeta: any[]
 	maxOpenTabsContext: number
 	maxWorkspaceFiles: number
@@ -47,6 +49,8 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	setCachedStateField: SetCachedStateField<
 		| "autoCondenseContext"
 		| "autoCondenseContextPercent"
+		| "autoCondenseContextMaxTokens"
+		| "profileMaxTokens"
 		| "maxOpenTabsContext"
 		| "maxWorkspaceFiles"
 		| "showRooIgnoredFiles"
@@ -66,6 +70,8 @@ type ContextManagementSettingsProps = HTMLAttributes<HTMLDivElement> & {
 export const ContextManagementSettings = ({
 	autoCondenseContext,
 	autoCondenseContextPercent,
+	autoCondenseContextMaxTokens,
+	profileMaxTokens = {},
 	listApiConfigMeta,
 	maxOpenTabsContext,
 	maxWorkspaceFiles,
@@ -136,6 +142,32 @@ export const ContextManagementSettings = ({
 
 			setCachedStateField("profileThresholds", newThresholds)
 			vscode.postMessage({ type: "updateSettings", updatedSettings: { profileThresholds: newThresholds } })
+		}
+	}
+
+	// Returns the current absolute token threshold for the selected profile
+	const getCurrentMaxTokensValue = (): number | undefined => {
+		if (selectedThresholdProfile === "default") {
+			return autoCondenseContextMaxTokens ?? undefined
+		}
+		const val = profileMaxTokens[selectedThresholdProfile]
+		if (val === undefined || val === -1) {
+			return undefined // empty input = "use global"
+		}
+		return val
+	}
+
+	// Writes the absolute token threshold for the selected profile
+	const handleMaxTokensChange = (value: number | undefined) => {
+		if (selectedThresholdProfile === "default") {
+			setCachedStateField("autoCondenseContextMaxTokens", value ?? null)
+		} else {
+			const newMaxTokens = {
+				...profileMaxTokens,
+				[selectedThresholdProfile]: value === undefined ? -1 : value,
+			}
+			setCachedStateField("profileMaxTokens", newMaxTokens)
+			vscode.postMessage({ type: "updateSettings", updatedSettings: { profileMaxTokens: newMaxTokens } })
 		}
 	}
 	return (
@@ -553,6 +585,46 @@ export const ContextManagementSettings = ({
 											threshold: autoCondenseContextPercent,
 										})
 									: t("settings:contextManagement.condensingThreshold.profileDescription")}
+							</div>
+						</div>
+
+						{/* Absolute token threshold -- global default or per-profile */}
+						<div>
+							<span className="block font-medium mb-1">
+								{t("settings:contextManagement.condensingThreshold.maxTokens.label")}
+							</span>
+							<div className="flex items-center gap-4">
+								<Input
+									type="number"
+									pattern="[0-9]*"
+									className="w-36 bg-vscode-input-background text-vscode-input-foreground border border-vscode-input-border px-2 py-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									placeholder={t(
+										"settings:contextManagement.condensingThreshold.maxTokens.placeholder",
+									)}
+									value={getCurrentMaxTokensValue() ?? ""}
+									min={1}
+									onChange={(e) => {
+										const raw = e.target.value.trim()
+										if (raw === "") {
+											handleMaxTokensChange(undefined)
+										} else {
+											const parsed = parseInt(raw, 10)
+											if (!isNaN(parsed) && parsed > 0) {
+												handleMaxTokensChange(parsed)
+											}
+										}
+									}}
+									onClick={(e) => e.currentTarget.select()}
+									data-testid="auto-condense-max-tokens-input"
+								/>
+								<span className="text-sm text-vscode-descriptionForeground">
+									{t("settings:contextManagement.condensingThreshold.maxTokens.unit")}
+								</span>
+							</div>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{selectedThresholdProfile === "default"
+									? t("settings:contextManagement.condensingThreshold.maxTokens.description")
+									: t("settings:contextManagement.condensingThreshold.maxTokens.profileDescription")}
 							</div>
 						</div>
 					</div>

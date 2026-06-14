@@ -659,7 +659,14 @@
 			"defaultDescription": "जब संदर्भ इस प्रतिशत तक पहुंचता है, तो यह सभी प्रोफ़ाइल के लिए स्वचालित रूप से संघनित हो जाएगा जब तक कि उनकी कस्टम सेटिंग्स न हों",
 			"profileDescription": "केवल इस प्रोफ़ाइल के लिए कस्टम सीमा (वैश्विक डिफ़ॉल्ट को ओवरराइड करता है)",
 			"inheritDescription": "यह प्रोफ़ाइल वैश्विक डिफ़ॉल्ट सीमा को इनहेरिट करता है ({{threshold}}%)",
-			"usesGlobal": "(वैश्विक {{threshold}}% का उपयोग करता है)"
+			"usesGlobal": "(वैश्विक {{threshold}}% का उपयोग करता है)",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"maxImageFileSize": {
 			"label": "अधिकतम छवि फ़ाइल आकार",

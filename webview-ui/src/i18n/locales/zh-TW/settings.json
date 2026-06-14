@@ -684,7 +684,14 @@
 			"defaultDescription": "當上下文達到此百分比時，除非有自訂設定，所有設定檔都會自動壓縮。",
 			"profileDescription": "僅此設定檔的自訂閾值（覆寫全域預設）",
 			"inheritDescription": "此設定檔沿用全域預設閾值（{{threshold}}%）",
-			"usesGlobal": "（使用全域 {{threshold}}%）"
+			"usesGlobal": "（使用全域 {{threshold}}%）",
+			"maxTokens": {
+				"label": "Maximum Context Tokens",
+				"placeholder": "Disabled",
+				"unit": "tokens",
+				"description": "Also compact when total context tokens exceed this value, regardless of percentage. Leave empty to disable.",
+				"profileDescription": "Custom token limit for this profile only. Leave empty to use the global default."
+			}
 		},
 		"includeCurrentTime": {
 			"label": "在上下文中包含目前時間",
