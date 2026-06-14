@@ -984,6 +984,18 @@
 			"label": "Cỡ chữ trò chuyện",
 			"description": "Đặt cỡ chữ (tính bằng pixel) cho cuộc trò chuyện Zoo Code. Để ở giá trị mặc định để khớp với cỡ chữ của VS Code.",
 			"reset": "Dùng mặc định của VS Code"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Tu dong dong cac file Zoo da mo",
+			"description": "Khi bat, cac tab trinh soan thao ma Zoo mo tam thoi de diff se tu dong dong sau khi chap nhan hoac tu choi thay doi. Cac tab nguoi dung da mo truoc khi chinh sua se khong bao gio bi tu dong dong."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Tu dong dong ngay ca sau khi nguoi dung tuong tac",
+			"description": "Khi bat, cac tab Zoo da mo se dong ngay ca khi nguoi dung da nhan chuot hoac go phim vao file hoac diff trong phien chinh sua. Khong co tac dung neu 'Tu dong dong cac file Zoo da mo' bi tat."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Tu dong dong cac file moi tao",
+			"description": "Khi bat, cac tab cua cac file Zoo da tao (thay vi chinh sua) cung se tu dong dong sau khi chap nhan thay doi."
 		}
 	},
 	"skills": {

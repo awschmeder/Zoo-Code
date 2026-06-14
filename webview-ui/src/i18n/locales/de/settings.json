@@ -984,6 +984,18 @@
 			"label": "Chat-Schriftgröße",
 			"description": "Lege die Schriftgröße (in Pixeln) für den Zoo Code-Chat fest. Belasse den Standardwert, um die Schriftgröße von VS Code zu übernehmen.",
 			"reset": "VS Code-Standard verwenden"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Von Zoo geoffnete Dateien automatisch schliessen",
+			"description": "Wenn aktiviert, werden Editor-Tabs, die Zoo voriibergehend fuer einen Diff geoffnet hat, nach dem Akzeptieren oder Ablehnen der Anderung automatisch geschlossen. Tabs, die der Nutzer bereits vor der Bearbeitung geoffnet hatte, werden nie automatisch geschlossen."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Auch nach Nutzer-Interaktion automatisch schliessen",
+			"description": "Wenn aktiviert, werden von Zoo geoffnete Tabs auch dann geschlossen, wenn der Nutzer wahrend der Bearbeitung in die Datei oder den Diff geklickt oder getippt hat. Hat keine Auswirkung, wenn 'Von Zoo geoffnete Dateien automatisch schliessen' deaktiviert ist."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Neu erstellte Dateien automatisch schliessen",
+			"description": "Wenn aktiviert, werden Tabs fuer Dateien, die Zoo neu erstellt hat (anstatt sie zu bearbeiten), nach dem Akzeptieren der Anderung ebenfalls automatisch geschlossen."
 		}
 	},
 	"skills": {

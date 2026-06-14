@@ -324,7 +324,6 @@ describe("DiffViewProvider", () => {
 				return { dispose: vi.fn() }
 			})
 			vi.mocked(vscode.window).visibleTextEditors = [mockEditor as any]
-
 			;(diffViewProvider as any).editType = "modify"
 
 			await diffViewProvider.open("test.md")
@@ -556,7 +555,11 @@ describe("DiffViewProvider", () => {
 			// The captured file is no longer open (evicted by the diff).
 			setTabs([])
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 12, viewColumn: vscode.ViewColumn.Two },
+				{
+					uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" },
+					scrollLine: 12,
+					viewColumn: vscode.ViewColumn.Two,
+				},
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()
@@ -575,7 +578,11 @@ describe("DiffViewProvider", () => {
 		it("does not restore a preview tab that is still open", async () => {
 			setTabs([makePreviewTab("/mock/cwd/file-1.txt")])
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" }, scrollLine: 0, viewColumn: vscode.ViewColumn.One },
+				{
+					uri: { fsPath: "/mock/cwd/file-1.txt", scheme: "file" },
+					scrollLine: 0,
+					viewColumn: vscode.ViewColumn.One,
+				},
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()
@@ -588,7 +595,11 @@ describe("DiffViewProvider", () => {
 			const fs = await import("fs/promises")
 			vi.mocked(fs.access).mockRejectedValueOnce(new Error("ENOENT"))
 			;(diffViewProvider as any).snapshotPreviewTabs = [
-				{ uri: { fsPath: "/mock/cwd/deleted.txt", scheme: "file" }, scrollLine: 0, viewColumn: vscode.ViewColumn.One },
+				{
+					uri: { fsPath: "/mock/cwd/deleted.txt", scheme: "file" },
+					scrollLine: 0,
+					viewColumn: vscode.ViewColumn.One,
+				},
 			]
 
 			await (diffViewProvider as any).restorePreviewTabs()
@@ -1533,7 +1544,11 @@ describe("DiffViewProvider", () => {
 			;(diffViewProvider as any).editType = "modify"
 
 			await diffViewProvider.open(relPath)
-			return { scrollCallback: scrollCallback!, activeDiffEditor: (diffViewProvider as any).activeDiffEditor, fsPath }
+			return {
+				scrollCallback: scrollCallback!,
+				activeDiffEditor: (diffViewProvider as any).activeDiffEditor,
+				fsPath,
+			}
 		}
 
 		it("records diffScrollLine and sets lastScrolledSource to 'diff' on diff editor scroll", async () => {
@@ -1585,6 +1600,179 @@ describe("DiffViewProvider", () => {
 			// Back to diff again.
 			scrollCallback({ textEditor: activeDiffEditor, visibleRanges: [{ start: { line: 20 } }] })
 			expect((diffViewProvider as any).lastScrolledSource).toBe("diff")
+		})
+	})
+
+	describe("auto-close settings decision table", () => {
+		const mockTargetPath = `${mockCwd}/auto-close-test.ts`
+
+		const buildActiveDiffEditor = () => ({
+			document: {
+				uri: { fsPath: mockTargetPath },
+				getText: vi.fn().mockReturnValue("content"),
+				isDirty: false,
+				save: vi.fn().mockResolvedValue(undefined),
+				positionAt: vi.fn().mockReturnValue({ line: 0, character: 0 }),
+			},
+		})
+
+		const setupProvider = (stateOverrides: Record<string, unknown> = {}) => {
+			const task = {
+				providerRef: {
+					deref: vi.fn().mockReturnValue({
+						getState: vi.fn().mockResolvedValue({
+							includeDiagnosticMessages: true,
+							maxDiagnosticMessages: 50,
+							...stateOverrides,
+						}),
+					}),
+				},
+			}
+			const provider = new DiffViewProvider(mockCwd, task)
+			;(provider as any).relPath = "auto-close-test.ts"
+			;(provider as any).newContent = "content"
+			;(provider as any).activeDiffEditor = buildActiveDiffEditor()
+			;(provider as any).closeAllDiffViews = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).preEditScrollLine = undefined
+			return provider
+		}
+
+		it("already-open file is never auto-closed regardless of settings", async () => {
+			const provider = setupProvider({ autoCloseZooOpenedFiles: true })
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = true
+			;(provider as any).userTouchedDocument = false
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+		})
+
+		it("transient tab is kept when autoCloseZooOpenedFiles is false", async () => {
+			const provider = setupProvider({ autoCloseZooOpenedFiles: false })
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = false
+			;(provider as any).userTouchedDiffEditor = false
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+			expect(vscode.window.showTextDocument).toHaveBeenCalled()
+		})
+
+		it("transient tab is closed when autoCloseZooOpenedFiles is true (default)", async () => {
+			const provider = setupProvider({ autoCloseZooOpenedFiles: true })
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = false
+			;(provider as any).userTouchedDiffEditor = false
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
+		})
+
+		it("touched tab is kept by default (autoCloseZooOpenedFilesAfterUserEdited unset)", async () => {
+			const provider = setupProvider({})
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = true
+			;(provider as any).userTouchedDiffEditor = false
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+		})
+
+		it("touched tab is closed when autoCloseZooOpenedFilesAfterUserEdited is true", async () => {
+			const provider = setupProvider({ autoCloseZooOpenedFilesAfterUserEdited: true })
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = true
+			;(provider as any).userTouchedDiffEditor = false
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
+		})
+
+		it("touched tab is kept when autoCloseZooOpenedFilesAfterUserEdited is true but autoCloseZooOpenedFiles is false", async () => {
+			// The after-edit override is a refinement of the base auto-close, so it
+			// has no effect when autoCloseZooOpenedFiles is disabled.
+			const provider = setupProvider({
+				autoCloseZooOpenedFiles: false,
+				autoCloseZooOpenedFilesAfterUserEdited: true,
+			})
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = true
+			;(provider as any).userTouchedDiffEditor = false
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+			expect(vscode.window.showTextDocument).toHaveBeenCalled()
+		})
+
+		it("new file tab is closed when autoCloseZooOpenedNewFiles is true (accept path)", async () => {
+			const provider = setupProvider({ autoCloseZooOpenedNewFiles: true })
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = false
+			;(provider as any).userTouchedDiffEditor = false
+			;(provider as any).editType = "create"
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
+		})
+
+		it("new file tab follows transient-tab rule when autoCloseZooOpenedNewFiles is false and autoCloseZooOpenedFiles is also false", async () => {
+			// autoCloseZooOpenedNewFiles=false means the new-file fast-path is skipped;
+			// the file then falls through to the normal transient-tab rule.
+			// With autoCloseZooOpenedFiles=false the tab should be kept.
+			const provider = setupProvider({
+				autoCloseZooOpenedNewFiles: false,
+				autoCloseZooOpenedFiles: false,
+			})
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = false
+			;(provider as any).userTouchedDiffEditor = false
+			;(provider as any).editType = "create"
+			vi.mocked(vscode.window.showTextDocument).mockResolvedValue({ revealRange: vi.fn() } as any)
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).not.toHaveBeenCalled()
+			expect(vscode.window.showTextDocument).toHaveBeenCalled()
+		})
+
+		it("defaults preserve existing behavior when all settings are unset", async () => {
+			// No auto-close settings in state: transient tab should be closed (existing default).
+			const provider = setupProvider({})
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			;(provider as any).closeFileTab = closeFileTab
+			;(provider as any).documentWasOpen = false
+			;(provider as any).userTouchedDocument = false
+			;(provider as any).userTouchedDiffEditor = false
+
+			await provider.saveChanges(false)
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
 		})
 	})
 })

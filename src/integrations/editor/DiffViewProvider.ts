@@ -70,7 +70,11 @@ export class DiffViewProvider {
 	// diff-open time. Opening the diff reuses the editor group's single preview
 	// slot and evicts these tabs; we restore any that disappeared after the diff
 	// session ends so the user's prior tab state is reconstructed.
-	private snapshotPreviewTabs: Array<{ uri: vscode.Uri; scrollLine: number | undefined; viewColumn: vscode.ViewColumn }> = []
+	private snapshotPreviewTabs: Array<{
+		uri: vscode.Uri
+		scrollLine: number | undefined
+		viewColumn: vscode.ViewColumn
+	}> = []
 	private taskRef: WeakRef<Task>
 
 	constructor(
@@ -340,7 +344,18 @@ export class DiffViewProvider {
 
 		await this.closeAllDiffViews()
 
-		await this.keepOrCloseEditedFile(absolutePath, this.userTouchedDiffEditor)
+		// Read auto-close preferences from state; fall back to defaults that
+		// preserve the existing behavior when unset.
+		const saveTask = this.taskRef.deref()
+		const saveState = await saveTask?.providerRef.deref()?.getState()
+
+		await this.keepOrCloseEditedFile(
+			absolutePath,
+			this.userTouchedDiffEditor,
+			saveState?.autoCloseZooOpenedFiles ?? true,
+			saveState?.autoCloseZooOpenedFilesAfterUserEdited ?? false,
+			saveState?.autoCloseZooOpenedNewFiles ?? false,
+		)
 
 		// Restore any preview tabs the diff evicted, reconstructing the user's
 		// prior not-yet-edited tab state.
@@ -540,7 +555,18 @@ export class DiffViewProvider {
 
 			await this.closeAllDiffViews()
 
-			await this.keepOrCloseEditedFile(absolutePath)
+			// Read auto-close preferences from state; fall back to defaults that
+			// preserve the existing behavior when unset.
+			const revertTask = this.taskRef.deref()
+			const revertState = await revertTask?.providerRef.deref()?.getState()
+
+			await this.keepOrCloseEditedFile(
+				absolutePath,
+				false,
+				revertState?.autoCloseZooOpenedFiles ?? true,
+				revertState?.autoCloseZooOpenedFilesAfterUserEdited ?? false,
+				revertState?.autoCloseZooOpenedNewFiles ?? false,
+			)
 		}
 
 		// Restore any preview tabs the diff evicted, reconstructing the user's
@@ -608,16 +634,59 @@ export class DiffViewProvider {
 		}
 	}
 
-	// Shared accept/deny cleanup: keep the edited file open if it was already open
-	// before the edit or the user interacted with it during the diff; otherwise
-	// close the tab that was opened transiently for the diff.
-	// Pass keepIfTouchedDiff=true (from saveChanges) to also keep the file when
-	// the user clicked or edited inside the diff editor itself.
-	private async keepOrCloseEditedFile(absolutePath: string, keepIfTouchedDiff = false): Promise<void> {
-		if (this.documentWasOpen || this.userTouchedDocument || keepIfTouchedDiff) {
+	// Shared accept/deny cleanup: applies the user's auto-close preferences to
+	// decide whether to keep or close the edited file's tab after the diff settles.
+	//
+	// Decision table (evaluated in order; first match wins):
+	//   1. File was already open before the edit -> always keep (closing it would
+	//      be destructive; user-opened tabs are never auto-closed).
+	//   2. editType==="create" AND autoCloseZooOpenedNewFiles -> close the new file's tab.
+	//   3. userTouchedDocument OR keepIfTouchedDiff -> the "keep if touched" guard
+	//      applies; it is overridden (close) only when BOTH autoCloseZooOpenedFiles
+	//      and autoCloseZooOpenedFilesAfterUserEdited are enabled. The override is a
+	//      refinement of the base auto-close, so it has no effect when the base
+	//      setting is off.
+	//   4. autoCloseZooOpenedFiles=false -> keep the transiently-opened tab.
+	//   5. Default -> close the transiently-opened tab (current behavior preserved).
+	//
+	// keepIfTouchedDiff is passed as true from saveChanges() when the user clicked
+	// or typed inside the diff editor itself.
+	private async keepOrCloseEditedFile(
+		absolutePath: string,
+		keepIfTouchedDiff = false,
+		autoCloseZooOpenedFiles = true,
+		autoCloseZooOpenedFilesAfterUserEdited = false,
+		autoCloseZooOpenedNewFiles = false,
+	): Promise<void> {
+		// Files the user already had open are never auto-closed.
+		if (this.documentWasOpen) {
 			await this.showEditedFileWithoutDisruptingFocus(absolutePath)
-		} else {
+			return
+		}
+
+		// New files on the accept path: close when autoCloseZooOpenedNewFiles is enabled.
+		if (this.editType === "create" && autoCloseZooOpenedNewFiles) {
 			await this.closeFileTab(absolutePath)
+			return
+		}
+
+		const userInteracted = this.userTouchedDocument || keepIfTouchedDiff
+		if (userInteracted) {
+			// Override the "keep if touched" guard only when the base auto-close is
+			// also enabled; the override is a refinement, not an independent toggle.
+			if (autoCloseZooOpenedFiles && autoCloseZooOpenedFilesAfterUserEdited) {
+				await this.closeFileTab(absolutePath)
+			} else {
+				await this.showEditedFileWithoutDisruptingFocus(absolutePath)
+			}
+			return
+		}
+
+		// Transient tab opened by Zoo: close by default, keep only when opted out.
+		if (autoCloseZooOpenedFiles) {
+			await this.closeFileTab(absolutePath)
+		} else {
+			await this.showEditedFileWithoutDisruptingFocus(absolutePath)
 		}
 	}
 
@@ -708,7 +777,11 @@ export class DiffViewProvider {
 					const visibleEditor = vscode.window.visibleTextEditors.find(
 						(e) => e.document.uri.scheme === "file" && arePathsEqual(e.document.uri.fsPath, uri.fsPath),
 					)
-					return { uri, scrollLine: visibleEditor?.visibleRanges?.[0]?.start.line, viewColumn: group.viewColumn }
+					return {
+						uri,
+						scrollLine: visibleEditor?.visibleRanges?.[0]?.start.line,
+						viewColumn: group.viewColumn,
+					}
 				}),
 		)
 	}
@@ -999,10 +1072,7 @@ export class DiffViewProvider {
 		editor.selection = new vscode.Selection(targetPosition, targetPosition)
 
 		const lineLength = editor.document.lineAt ? editor.document.lineAt(safeLine).text.length : 0
-		editor.revealRange(
-			new vscode.Range(safeLine, 0, safeLine, lineLength),
-			vscode.TextEditorRevealType.InCenter,
-		)
+		editor.revealRange(new vscode.Range(safeLine, 0, safeLine, lineLength), vscode.TextEditorRevealType.InCenter)
 	}
 
 	private stripAllBOMs(input: string): string {

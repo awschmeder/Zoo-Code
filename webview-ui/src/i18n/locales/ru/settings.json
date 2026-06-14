@@ -984,6 +984,18 @@
 			"label": "Размер шрифта чата",
 			"description": "Задайте размер шрифта (в пикселях) для чата Zoo Code. Оставьте значение по умолчанию, чтобы соответствовать размеру шрифта VS Code.",
 			"reset": "Использовать значение по умолчанию VS Code"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Avtomaticheski zakryvat' fajly, otkrytye Zoo",
+			"description": "Pri vkljuchenii vkladki redaktora, kotorye Zoo otkryl vremenno dlja diff, avtomaticheski zakryvajutsja posle prinjatija ili otkaza izmenenija. Vkladki, kotorye pol'zovatel' uzhe otkryl do redaktirovanija, nikogda ne zakryvajutsja avtomaticheski."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Avtomaticheski zakryvat' dazhe posle vzaimodejstvija pol'zovatelja",
+			"description": "Pri vkljuchenii vkladki, otkrytye Zoo, zakryvajutsja dazhe esli pol'zovatel' shchelkal ili vvodil tekst v fajl ili diff vo vremja seanса redaktirovanija. Ne imeet effekta, esli 'Avtomaticheski zakryvat' fajly, otkrytye Zoo' otkljuchena."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Avtomaticheski zakryvat' novye sozdannye fajly",
+			"description": "Pri vkljuchenii vkladki fajlov, kotorye Zoo sozdale (a ne izmenilo), takzhe avtomaticheski zakryvajutsja posle prinjatija izmenenija."
 		}
 	},
 	"skills": {
