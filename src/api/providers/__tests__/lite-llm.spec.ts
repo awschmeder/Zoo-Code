@@ -1155,5 +1155,21 @@ describe("LiteLLMHandler", () => {
 			const requestHeaders = mockCreate.mock.calls[0][1]?.headers
 			expect(requestHeaders).not.toHaveProperty("X-Zoo-Session-ID")
 		})
+
+		it("should not send the X-Zoo-Session-ID header when taskId is an empty string", async () => {
+			mockCreate.mockReturnValue({
+				withResponse: vi.fn().mockResolvedValue({ data: mockStream }),
+			})
+
+			const generator = handler.createMessage("system", [{ role: "user", content: "hi" }], {
+				taskId: "",
+			})
+			for await (const _chunk of generator) {
+				// drain the stream
+			}
+
+			const requestHeaders = mockCreate.mock.calls[0][1]?.headers
+			expect(requestHeaders).not.toHaveProperty("X-Zoo-Session-ID")
+		})
 	})
 })
