@@ -1,5 +1,6 @@
 import { useCallback, useState, useEffect, useRef } from "react"
 import { VSCodeTextField, VSCodeCheckbox } from "@vscode/webview-ui-toolkit/react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import {
 	type ProviderSettings,
@@ -34,6 +35,7 @@ export const LiteLLM = ({
 	simplifySettings,
 }: LiteLLMProps) => {
 	const { t } = useAppTranslation()
+	const queryClient = useQueryClient()
 	const { routerModels } = useExtensionState()
 	const [refreshStatus, setRefreshStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
 	const [refreshError, setRefreshError] = useState<string | undefined>()
@@ -55,6 +57,9 @@ export const LiteLLM = ({
 				if (refreshStatus === "loading") {
 					if (!litellmErrorJustReceived.current) {
 						setRefreshStatus("success")
+						// Invalidate the react-query router models cache so
+						// useSelectedModel picks up the refreshed list.
+						queryClient.invalidateQueries({ queryKey: ["routerModels"] })
 					}
 					// If litellmErrorJustReceived.current is true, status is already (or will be) "error".
 				}
@@ -65,7 +70,7 @@ export const LiteLLM = ({
 		return () => {
 			window.removeEventListener("message", handleMessage)
 		}
-	}, [refreshStatus, refreshError, setRefreshStatus, setRefreshError])
+	}, [refreshStatus, queryClient])
 
 	const handleInputChange = useCallback(
 		<K extends keyof ProviderSettings, E>(

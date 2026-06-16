@@ -571,9 +571,34 @@ describe("useSelectedModel", () => {
 			const { result } = renderHook(() => useSelectedModel(apiConfiguration), { wrapper })
 
 			expect(result.current.provider).toBe("litellm")
-			// Should fall back to default model ID since "some-model" doesn't exist in empty litellm models
-			expect(result.current.id).toBe("claude-3-7-sonnet-20250219")
+			// Should preserve configured model ID since "some-model" doesn't exist in empty litellm models
+			expect(result.current.id).toBe("some-model")
 			// Should use litellmDefaultModelInfo as fallback
+			expect(result.current.info).toEqual(litellmDefaultModelInfo)
+		})
+
+		it("should return an empty model ID when the list is empty and no model is configured", () => {
+			mockUseRouterModels.mockReturnValue({
+				data: {
+					openrouter: {},
+					requesty: {},
+					litellm: {},
+				},
+				isLoading: false,
+				isError: false,
+			} as any)
+
+			const apiConfiguration: ProviderSettings = {
+				apiProvider: "litellm",
+				// litellmModelId intentionally omitted
+			}
+
+			const wrapper = createWrapper()
+			const { result } = renderHook(() => useSelectedModel(apiConfiguration), { wrapper })
+
+			expect(result.current.provider).toBe("litellm")
+			// LiteLLM has no inherent default; with nothing configured the ID is empty rather than a phantom model
+			expect(result.current.id).toBe("")
 			expect(result.current.info).toEqual(litellmDefaultModelInfo)
 		})
 

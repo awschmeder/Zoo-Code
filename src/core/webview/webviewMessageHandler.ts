@@ -1074,9 +1074,11 @@ export const webviewMessageHandler = async (
 				},
 			]
 
-			// LiteLLM is conditional on baseUrl+apiKey
-			const litellmApiKey = apiConfiguration.litellmApiKey || message?.values?.litellmApiKey
-			const litellmBaseUrl = apiConfiguration.litellmBaseUrl || message?.values?.litellmBaseUrl
+			// LiteLLM is conditional on baseUrl+apiKey.
+			// Prefer explicit values from message (current unsaved field state) over saved config,
+			// matching the pattern used for DeepSeek and other credential-carrying providers.
+			const litellmApiKey = message?.values?.litellmApiKey ?? apiConfiguration.litellmApiKey
+			const litellmBaseUrl = message?.values?.litellmBaseUrl ?? apiConfiguration.litellmBaseUrl
 
 			if (litellmApiKey && litellmBaseUrl) {
 				// If explicit credentials are provided in message.values (from Refresh Models button),
