@@ -1088,6 +1088,14 @@ export class DiffViewProvider {
 	}
 
 	async reset(): Promise<void> {
+		// Dispose touch listeners and cancel any pending deferred scroll BEFORE any
+		// async editor manipulation. closeAllDiffViews() awaits tab-close operations,
+		// so leaving listeners/timers live across that await could let a stale handler
+		// act on an editor mid-teardown. This mirrors the ordering used in
+		// saveChanges()/revertChanges().
+		this.disposeActiveEditorListener()
+		this.cancelDeferredScroll()
+
 		await this.closeAllDiffViews()
 		this.editType = undefined
 		this.isEditing = false
@@ -1095,7 +1103,6 @@ export class DiffViewProvider {
 		this.createdDirs = []
 		this.documentWasOpen = false
 		this.documentWasPinned = false
-		this.cancelDeferredScroll()
 		this.activeDiffEditor = undefined
 		this.fadedOverlayController = undefined
 		this.activeLineController = undefined
@@ -1108,7 +1115,6 @@ export class DiffViewProvider {
 		this.userTouchedDocument = false
 		this.userTouchedDiffEditor = false
 		this.snapshotPreviewTabs = []
-		this.disposeActiveEditorListener()
 	}
 
 	/**

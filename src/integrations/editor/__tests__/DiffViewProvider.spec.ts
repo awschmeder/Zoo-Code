@@ -85,12 +85,21 @@ vi.mock("vscode", () => ({
 		Eight: 8,
 		Nine: 9,
 	},
-	Range: vi.fn().mockImplementation((startLine, startChar, endLine, endChar) => ({
-		start: { line: startLine, character: startChar },
-		end: { line: endLine, character: endChar },
-	})),
-	Position: vi.fn().mockImplementation((line, character) => ({ line, character })),
-	Selection: vi.fn().mockImplementation((anchor, active) => ({ anchor, active })),
+	// Use regular functions (not arrows) so these mocks can be invoked with `new`.
+	// vitest v4 / tinyspy invokes the implementation as a constructor for `new mock()`,
+	// and arrow functions throw "is not a constructor".
+	Range: vi.fn().mockImplementation(function (startLine, startChar, endLine, endChar) {
+		return {
+			start: { line: startLine, character: startChar },
+			end: { line: endLine, character: endChar },
+		}
+	}),
+	Position: vi.fn().mockImplementation(function (line, character) {
+		return { line, character }
+	}),
+	Selection: vi.fn().mockImplementation(function (anchor, active) {
+		return { anchor, active }
+	}),
 	TextEditorRevealType: {
 		Default: 0,
 		InCenter: 2,
@@ -1442,6 +1451,32 @@ describe("DiffViewProvider", () => {
 
 			expect((diffViewProvider as any).userTouchedDiffEditor).toBe(false)
 		})
+
+		it("revertChanges() closes the file tab even when userTouchedDiffEditor is true (deny ignores diff-touch)", async () => {
+			// Asymmetry guard: only saveChanges() passes userTouchedDiffEditor through to
+			// keepOrCloseEditedFile(). revertChanges() (deny) must NOT honor a diff-pane
+			// touch -- a denied edit on a not-previously-open, document-untouched file
+			// should still close the transient tab. This protects the documented intent
+			// from accidental regression.
+			const closeFileTab = vi.fn().mockResolvedValue(undefined)
+			vi.mocked(vscode.workspace.applyEdit).mockResolvedValue(true)
+			;(diffViewProvider as any).closeAllDiffViews = vi.fn().mockResolvedValue(undefined)
+			;(diffViewProvider as any).closeFileTab = closeFileTab
+			;(diffViewProvider as any).relPath = "mock-target-file.ts"
+			;(diffViewProvider as any).documentWasOpen = false
+			;(diffViewProvider as any).userTouchedDocument = false
+			// The user clicked inside the diff pane -- but this is a deny, so it must be ignored.
+			;(diffViewProvider as any).userTouchedDiffEditor = true
+			;(diffViewProvider as any).preEditScrollLine = undefined
+			;(diffViewProvider as any).editType = "modify"
+			;(diffViewProvider as any).originalContent = "original"
+			;(diffViewProvider as any).activeDiffEditor = buildActiveDiffEditor()
+
+			await diffViewProvider.revertChanges()
+
+			expect(closeFileTab).toHaveBeenCalledWith(mockTargetPath)
+			expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+		})
 	})
 
 	describe("scroll position precedence in showEditedFileWithoutDisruptingFocus", () => {
@@ -1550,8 +1585,13 @@ describe("DiffViewProvider", () => {
 			;(diffViewProvider as any).editType = "modify"
 
 			await diffViewProvider.open(relPath)
+			if (!scrollCallback) {
+				throw new Error(
+					"onDidChangeTextEditorVisibleRanges mock was not invoked during open() - scroll listener setup changed",
+				)
+			}
 			return {
-				scrollCallback: scrollCallback!,
+				scrollCallback,
 				activeDiffEditor: (diffViewProvider as any).activeDiffEditor,
 				fsPath,
 			}
@@ -1634,7 +1674,7 @@ describe("DiffViewProvider", () => {
 					}),
 				},
 			}
-			const provider = new DiffViewProvider(mockCwd, task)
+			const provider = new DiffViewProvider(mockCwd, task as any)
 			;(provider as any).relPath = "auto-close-test.ts"
 			;(provider as any).newContent = "content"
 			;(provider as any).activeDiffEditor = buildActiveDiffEditor()

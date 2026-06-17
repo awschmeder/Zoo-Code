@@ -987,15 +987,15 @@
 		},
 		"autoCloseZooOpenedFiles": {
 			"label": "Fermer automatiquement les fichiers ouverts par Zoo",
-			"description": "Quand cette option est activee, les onglets d'editeur que Zoo a ouverts temporairement pour un diff sont fermes automatiquement apres l'acceptation ou le rejet de la modification. Les onglets que l'utilisateur avait deja ouverts avant la modification ne sont jamais fermes automatiquement."
+			"description": "Quand cette option est activée, les onglets d'éditeur que Zoo a ouverts temporairement pour un diff sont fermés automatiquement après l'acceptation ou le rejet de la modification. Les onglets que l'utilisateur avait déjà ouverts avant la modification ne sont jamais fermés automatiquement."
 		},
 		"autoCloseZooOpenedFilesAfterUserEdited": {
-			"label": "Fermer automatiquement meme apres interaction utilisateur",
-			"description": "Quand cette option est activee, les onglets ouverts par Zoo sont fermes meme si l'utilisateur a clique ou tape dans le fichier ou le diff pendant la session de modification. N'a aucun effet si 'Fermer automatiquement les fichiers ouverts par Zoo' est desactive."
+			"label": "Fermer automatiquement même après interaction utilisateur",
+			"description": "Quand cette option est activée, les onglets ouverts par Zoo sont fermés même si l'utilisateur a cliqué ou tapé dans le fichier ou le diff pendant la session de modification. N'a aucun effet si 'Fermer automatiquement les fichiers ouverts par Zoo' est désactivé."
 		},
 		"autoCloseZooOpenedNewFiles": {
-			"label": "Fermer automatiquement les nouveaux fichiers crees",
-			"description": "Quand cette option est activee, les onglets des fichiers que Zoo a crees (plutot que modifies) sont egalement fermes automatiquement apres l'acceptation de la modification."
+			"label": "Fermer automatiquement les nouveaux fichiers créés",
+			"description": "Quand cette option est activée, les onglets des fichiers que Zoo a créés (plutôt que modifiés) sont également fermés automatiquement après l'acceptation de la modification."
 		}
 	},
 	"skills": {

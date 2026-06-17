@@ -986,16 +986,16 @@
 			"reset": "Dùng mặc định của VS Code"
 		},
 		"autoCloseZooOpenedFiles": {
-			"label": "Tu dong dong cac file Zoo da mo",
-			"description": "Khi bat, cac tab trinh soan thao ma Zoo mo tam thoi de diff se tu dong dong sau khi chap nhan hoac tu choi thay doi. Cac tab nguoi dung da mo truoc khi chinh sua se khong bao gio bi tu dong dong."
+			"label": "Tự động đóng các tệp do Zoo mở",
+			"description": "Khi bật, các tab trình soạn thảo mà Zoo mở tạm thời để hiển thị diff sẽ tự động đóng sau khi chấp nhận hoặc từ chối thay đổi. Các tab mà người dùng đã mở trước khi chỉnh sửa sẽ không bao giờ bị tự động đóng."
 		},
 		"autoCloseZooOpenedFilesAfterUserEdited": {
-			"label": "Tu dong dong ngay ca sau khi nguoi dung tuong tac",
-			"description": "Khi bat, cac tab Zoo da mo se dong ngay ca khi nguoi dung da nhan chuot hoac go phim vao file hoac diff trong phien chinh sua. Khong co tac dung neu 'Tu dong dong cac file Zoo da mo' bi tat."
+			"label": "Tự động đóng ngay cả sau khi người dùng tương tác",
+			"description": "Khi bật, các tab do Zoo mở sẽ đóng ngay cả khi người dùng đã nhấn chuột hoặc gõ phím vào tệp hoặc diff trong phiên chỉnh sửa. Không có tác dụng nếu 'Tự động đóng các tệp do Zoo mở' bị tắt."
 		},
 		"autoCloseZooOpenedNewFiles": {
-			"label": "Tu dong dong cac file moi tao",
-			"description": "Khi bat, cac tab cua cac file Zoo da tao (thay vi chinh sua) cung se tu dong dong sau khi chap nhan thay doi."
+			"label": "Tự động đóng các tệp mới tạo",
+			"description": "Khi bật, các tab của các tệp mà Zoo đã tạo (thay vì chỉnh sửa) cũng sẽ tự động đóng sau khi chấp nhận thay đổi."
 		}
 	},
 	"skills": {

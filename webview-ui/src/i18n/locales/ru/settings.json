@@ -986,16 +986,16 @@
 			"reset": "Использовать значение по умолчанию VS Code"
 		},
 		"autoCloseZooOpenedFiles": {
-			"label": "Avtomaticheski zakryvat' fajly, otkrytye Zoo",
-			"description": "Pri vkljuchenii vkladki redaktora, kotorye Zoo otkryl vremenno dlja diff, avtomaticheski zakryvajutsja posle prinjatija ili otkaza izmenenija. Vkladki, kotorye pol'zovatel' uzhe otkryl do redaktirovanija, nikogda ne zakryvajutsja avtomaticheski."
+			"label": "Автоматически закрывать файлы, открытые Zoo",
+			"description": "Если включено, вкладки редактора, которые Zoo временно открыл для diff, автоматически закрываются после принятия или отклонения изменения. Вкладки, которые пользователь открыл до редактирования, никогда не закрываются автоматически."
 		},
 		"autoCloseZooOpenedFilesAfterUserEdited": {
-			"label": "Avtomaticheski zakryvat' dazhe posle vzaimodejstvija pol'zovatelja",
-			"description": "Pri vkljuchenii vkladki, otkrytye Zoo, zakryvajutsja dazhe esli pol'zovatel' shchelkal ili vvodil tekst v fajl ili diff vo vremja seanса redaktirovanija. Ne imeet effekta, esli 'Avtomaticheski zakryvat' fajly, otkrytye Zoo' otkljuchena."
+			"label": "Автоматически закрывать даже после взаимодействия пользователя",
+			"description": "Если включено, вкладки, открытые Zoo, закрываются, даже если пользователь щёлкнул или печатал в файле или diff во время сеанса редактирования. Не действует, если параметр «Автоматически закрывать файлы, открытые Zoo» отключён."
 		},
 		"autoCloseZooOpenedNewFiles": {
-			"label": "Avtomaticheski zakryvat' novye sozdannye fajly",
-			"description": "Pri vkljuchenii vkladki fajlov, kotorye Zoo sozdale (a ne izmenilo), takzhe avtomaticheski zakryvajutsja posle prinjatija izmenenija."
+			"label": "Автоматически закрывать новые созданные файлы",
+			"description": "Если включено, вкладки файлов, которые Zoo создал (а не изменил), также автоматически закрываются после принятия изменения."
 		}
 	},
 	"skills": {
