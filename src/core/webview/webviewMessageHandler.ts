@@ -1006,7 +1006,7 @@ export const webviewMessageHandler = async (
 			// For providers that need credentials, use their specific handlers
 			await flushModels({ provider: routerNameFlush } as GetModelsOptions, true)
 			break
-		case "requestRouterModels":
+		case "requestRouterModels": {
 			const { apiConfiguration } = await provider.getState()
 
 			// Optional single provider filter from webview
@@ -1187,6 +1187,7 @@ export const webviewMessageHandler = async (
 				values: providerFilter ? { provider: requestedProvider } : undefined,
 			})
 			break
+		}
 		case "requestOllamaModels": {
 			// Specific handler for Ollama models only.
 			const { apiConfiguration: ollamaApiConfig } = await provider.getState()

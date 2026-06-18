@@ -36,7 +36,7 @@ const memoryCache = new NodeCache({ stdTTL: 5 * 60, checkperiod: 5 * 60 })
 const modelRecordSchema = z.record(z.string(), modelInfoSchema)
 
 // Track in-flight refresh requests to prevent concurrent API calls for the same provider+url.
-// Keyed on the compound cache key (see getCacheKey) so that two different LiteLLM servers never
+// Keyed on the compound cache key (see getCacheKey) so that two different URL-scoped servers never
 // deduplicate each other's in-flight refreshes.
 const inFlightRefresh = new Map<string, Promise<ModelRecord>>()
 
@@ -59,7 +59,7 @@ const URL_SCOPED_PROVIDERS: ReadonlySet<RouterName> = new Set([
 ])
 
 // Providers where the API key itself determines which models are visible (e.g. per-key
-// allowlists on a shared proxy). For these the cache key also includes a short hash of
+// allowlists). For these the cache key also includes a short hash of
 // the API key so that two different keys on the same server never share a cache entry.
 const KEY_SCOPED_PROVIDERS: ReadonlySet<RouterName> = new Set([
 	"litellm", // Per-key model allowlists are a first-class LiteLLM proxy feature
@@ -85,26 +85,39 @@ function getCacheKey(options: GetModelsOptions): string {
 	const isUrlScoped = URL_SCOPED_PROVIDERS.has(provider as RouterName)
 	const isKeyScoped = KEY_SCOPED_PROVIDERS.has(provider as RouterName)
 
-	if (isUrlScoped && options.baseUrl) {
-		// Strip trailing slashes so "http://host:4000/" and "http://host:4000" map to the same key.
-		const normalizedUrl = options.baseUrl.replace(/\/+$/, "")
-		if (isKeyScoped && options.apiKey) {
-			// Short (16-char) sha256 prefix -- enough to make collisions effectively impossible
-			// while keeping filenames readable. We do not need the full digest here.
-			const keyHash = createHash("sha256").update(options.apiKey).digest("hex").slice(0, 16)
-			return `${provider}:${normalizedUrl}:${keyHash}`
-		}
-		return `${provider}:${normalizedUrl}`
-	}
+	// Build URL and key components independently so that key-scoped providers
+	// without a custom baseUrl still get a per-key cache entry (otherwise two
+	// different keys on the default server would collapse to the same entry).
+	// Strip trailing slashes so "http://host:4000/" and "http://host:4000" map to the same key.
+	const urlPart = isUrlScoped && options.baseUrl ? options.baseUrl.replace(/\/+$/, "") : undefined
+	// Short (16-char) sha256 prefix -- enough to make collisions effectively impossible.
+	// Not a password hash -- SHA-256 is used here purely as a cache key discriminator to
+	// distinguish between different API keys on the same server. It is never used for
+	// authentication or stored as a credential.
+	// codeql[js/insufficient-password-hash]
+	const keyPart =
+		isKeyScoped && options.apiKey
+			? createHash("sha256").update(options.apiKey).digest("hex").slice(0, 16)
+			: undefined
+
+	if (urlPart && keyPart) return `${provider}:${urlPart}:${keyPart}`
+	if (urlPart) return `${provider}:${urlPart}`
+	if (keyPart) return `${provider}:${keyPart}`
 	return provider
 }
 
 /**
  * Convert a cache key to a filesystem-safe filename component.
- * Replaces characters that are illegal or awkward in filenames with underscores.
+ * Hashes the full key to guarantee uniqueness while preserving a readable
+ * provider prefix at the start of the filename.
  */
 function cacheKeyToFilename(cacheKey: string): string {
-	return cacheKey.replace(/[:/\\?#*<>|"\s]+/g, "_")
+	const prefix = cacheKey.split(":")[0] // provider name -- always filesystem-safe
+	// Not a password hash -- SHA-256 is used here to produce a collision-free filename
+	// component from the compound cache key. It is never used for authentication.
+	// codeql[js/insufficient-password-hash]
+	const hash = createHash("sha256").update(cacheKey).digest("hex").slice(0, 16)
+	return `${prefix}_${hash}`
 }
 
 async function writeModels(cacheKey: string, data: ModelRecord) {
@@ -376,6 +389,14 @@ export const flushModels = async (options: GetModelsOptions, refresh: boolean = 
 export function getModelsFromCache(
 	options: GetModelsOptions | ProviderName,
 ): ModelRecord | undefined {
+	// Auth-scoped providers (e.g. zoo-gateway) must never be served from cache --
+	// their model lists are user-specific and a stale file left over from a previous
+	// session could leak another user's list. Mirror the guards in getModels/refreshModels.
+	const providerName = typeof options === "string" ? options : options.provider
+	if (isAuthScopedProvider(providerName as RouterName)) {
+		return undefined
+	}
+
 	const cacheKey = typeof options === "string" ? options : getCacheKey(options)
 	// Check memory cache first (fast)
 	const memoryModels = memoryCache.get<ModelRecord>(cacheKey)
