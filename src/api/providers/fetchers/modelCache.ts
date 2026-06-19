@@ -94,7 +94,6 @@ function getCacheKey(options: GetModelsOptions): string {
 	// Not a password hash -- SHA-256 is used here purely as a cache key discriminator to
 	// distinguish between different API keys on the same server. It is never used for
 	// authentication or stored as a credential.
-	// codeql[js/insufficient-password-hash]
 	const keyPart =
 		isKeyScoped && options.apiKey
 			? createHash("sha256").update(options.apiKey).digest("hex").slice(0, 16)
@@ -115,7 +114,6 @@ function cacheKeyToFilename(cacheKey: string): string {
 	const prefix = cacheKey.split(":")[0] // provider name -- always filesystem-safe
 	// Not a password hash -- SHA-256 is used here to produce a collision-free filename
 	// component from the compound cache key. It is never used for authentication.
-	// codeql[js/insufficient-password-hash]
 	const hash = createHash("sha256").update(cacheKey).digest("hex").slice(0, 16)
 	return `${prefix}_${hash}`
 }
