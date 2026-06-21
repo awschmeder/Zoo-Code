@@ -1,6 +1,6 @@
 import { memo, useRef, useState, useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { ChevronUp, ChevronDown, HardDriveDownload, HardDriveUpload, FoldVertical, ArrowLeft } from "lucide-react"
+import { ChevronUp, ChevronDown, HardDriveDownload, HardDriveUpload, ListChevronsDownUp, ArrowLeft } from "lucide-react"
 import prettyBytes from "pretty-bytes"
 
 import type { ClineMessage } from "@roo-code/types"
@@ -81,7 +81,7 @@ const TaskHeader = ({
 	const condenseButton = (
 		<LucideIconButton
 			title={t("chat:task.condenseContext")}
-			icon={FoldVertical}
+			icon={ListChevronsDownUp}
 			disabled={buttonsDisabled}
 			onClick={() => currentTaskItem && handleCondenseContext(currentTaskItem.id)}
 		/>
