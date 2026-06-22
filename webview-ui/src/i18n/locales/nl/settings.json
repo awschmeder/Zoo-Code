@@ -62,6 +62,24 @@
 		"debugMode": {
 			"label": "Debugmodus inschakelen",
 			"description": "Schakel de debugmodus in om extra knoppen in de taakkoptekst te tonen voor het bekijken van API-gesprekgeschiedenis en UI-berichten als opgemaakte JSON in tijdelijke bestanden."
+		},
+		"rooHistoryImport": {
+			"settingLabel": "Geschiedenis importeren van Roo Code",
+			"cardTitle": "Roo Code-geschiedenis",
+			"cardDescription": "Opgeslagen Roo Code-gesprekken naar Zoo Code kopiëren.",
+			"statusImporting": "Geschiedenis importeren",
+			"statusFailed": "Importeren mislukt",
+			"statusComplete": "Importeren voltooid",
+			"buttonImporting": "Importeren van Roo Code...",
+			"buttonIdle": "Geschiedenis importeren van Roo Code",
+			"summaryFailedWithFiles": "{{copied}} van {{total}} bestanden gekopieerd voordat het importeren stopte.",
+			"summaryFailedNoFiles": "Het importeren is gestopt voordat er bestanden werden gekopieerd.",
+			"summaryCopied": "{{copied}} van {{total}} bestanden gekopieerd",
+			"detailFailed": "Start een nieuwe importpoging om het opnieuw te proberen.",
+			"detailTasksImported_one": "{{count}} van {{total}} taakgeschiedenis geïmporteerd.",
+			"detailTasksImported_other": "{{count}} van {{total}} taakgeschiedenissen geïmporteerd.",
+			"detailPreparing": "Importeren van Roo Code-geschiedenis voorbereiden.",
+			"progressAriaLabel": "Voortgang van import van Roo Code-geschiedenis"
 		}
 	},
 	"slashCommands": {
@@ -544,6 +562,7 @@
 			"minimal": "Minimaal (Snelst)",
 			"high": "Hoog",
 			"xhigh": "Zeer hoog",
+			"max": "Maximum",
 			"medium": "Middel",
 			"low": "Laag"
 		},
@@ -984,6 +1003,18 @@
 			"label": "Lettergrootte van chat",
 			"description": "Stel de lettergrootte (in pixels) in voor de Zoo Code-chat. Laat op de standaardwaarde staan om overeen te komen met de lettergrootte van VS Code.",
 			"reset": "VS Code-standaard gebruiken"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Automatisch sluiten van door Zoo geopende bestanden",
+			"description": "Wanneer ingeschakeld, worden editor-tabbladen die Zoo tijdelijk heeft geopend voor een diff automatisch gesloten nadat de wijziging is geaccepteerd of geweigerd. Tabbladen die de gebruiker al had geopend voor de bewerking worden nooit automatisch gesloten."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Automatisch sluiten ook na gebruikersinteractie",
+			"description": "Wanneer ingeschakeld, worden door Zoo geopende tabbladen gesloten, zelfs als de gebruiker tijdens de bewerkingssessie in het bestand of de diff heeft geklikt of getypt. Heeft geen effect als 'Automatisch sluiten van door Zoo geopende bestanden' is uitgeschakeld."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Automatisch sluiten van nieuw gemaakte bestanden",
+			"description": "Wanneer ingeschakeld, worden tabbladen van bestanden die Zoo heeft aangemaakt (in plaats van gewijzigd) ook automatisch gesloten nadat de wijziging is geaccepteerd."
 		}
 	},
 	"skills": {

@@ -62,6 +62,24 @@
 		"debugMode": {
 			"label": "Activer le mode debug",
 			"description": "Active le mode debug pour afficher des boutons supplémentaires dans l'en-tête de la tâche permettant de consulter l'historique de conversation de l'API et les messages de l'interface utilisateur au format JSON dans des fichiers temporaires."
+		},
+		"rooHistoryImport": {
+			"settingLabel": "Importer l'historique depuis Roo Code",
+			"cardTitle": "Historique Roo Code",
+			"cardDescription": "Copier les conversations Roo Code sauvegardées dans Zoo Code.",
+			"statusImporting": "Importation de l'historique",
+			"statusFailed": "Échec de l'importation",
+			"statusComplete": "Importation terminée",
+			"buttonImporting": "Importation depuis Roo Code...",
+			"buttonIdle": "Importer l'historique depuis Roo Code",
+			"summaryFailedWithFiles": "{{copied}} sur {{total}} fichiers copiés avant l'arrêt de l'importation.",
+			"summaryFailedNoFiles": "L'importation s'est arrêtée avant que des fichiers soient copiés.",
+			"summaryCopied": "{{copied}} sur {{total}} fichiers copiés",
+			"detailFailed": "Démarre une nouvelle tentative d'importation pour réessayer.",
+			"detailTasksImported_one": "{{count}} sur {{total}} historique de tâche importé.",
+			"detailTasksImported_other": "{{count}} sur {{total}} historiques de tâches importés.",
+			"detailPreparing": "Préparation de l'importation de l'historique Roo Code.",
+			"progressAriaLabel": "Progression de l'importation de l'historique Roo Code"
 		}
 	},
 	"slashCommands": {
@@ -544,6 +562,7 @@
 			"minimal": "Minimal (le plus rapide)",
 			"high": "Élevé",
 			"xhigh": "Très élevé",
+			"max": "Maximum",
 			"medium": "Moyen",
 			"low": "Faible"
 		},
@@ -984,6 +1003,18 @@
 			"label": "Taille de police du chat",
 			"description": "Définissez la taille de police (en pixels) du chat Zoo Code. Laissez la valeur par défaut pour correspondre à la taille de police de VS Code.",
 			"reset": "Utiliser la valeur par défaut de VS Code"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Fermer automatiquement les fichiers ouverts par Zoo",
+			"description": "Quand cette option est activée, les onglets d'éditeur que Zoo a ouverts temporairement pour un diff sont fermés automatiquement après l'acceptation ou le rejet de la modification. Les onglets que l'utilisateur avait déjà ouverts avant la modification ne sont jamais fermés automatiquement."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Fermer automatiquement même après interaction utilisateur",
+			"description": "Quand cette option est activée, les onglets ouverts par Zoo sont fermés même si l'utilisateur a cliqué ou tapé dans le fichier ou le diff pendant la session de modification. N'a aucun effet si 'Fermer automatiquement les fichiers ouverts par Zoo' est désactivé."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Fermer automatiquement les nouveaux fichiers créés",
+			"description": "Quand cette option est activée, les onglets des fichiers que Zoo a créés (plutôt que modifiés) sont également fermés automatiquement après l'acceptation de la modification."
 		}
 	},
 	"skills": {

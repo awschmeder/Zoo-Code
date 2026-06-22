@@ -1,5 +1,11 @@
 // npx vitest run api/providers/__tests__/requesty.spec.ts
 
+vitest.mock("../utils/timeout-config", () => ({
+	getApiRequestTimeout: vitest.fn().mockReturnValue(300_000),
+}))
+
+const MOCK_TIMEOUT_MS = 300_000
+
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
 
@@ -12,20 +18,26 @@ const mockCreate = vitest.fn()
 
 vitest.mock("openai", () => {
 	return {
-		default: vitest.fn().mockImplementation(() => ({
-			chat: {
-				completions: {
-					create: mockCreate,
+		default: vitest.fn().mockImplementation(function () {
+			return {
+				chat: {
+					completions: {
+						create: mockCreate,
+					},
 				},
-			},
-		})),
+			}
+		}),
 	}
 })
 
-vitest.mock("delay", () => ({ default: vitest.fn(() => Promise.resolve()) }))
+vitest.mock("delay", () => ({
+	default: vitest.fn(function () {
+		return Promise.resolve()
+	}),
+}))
 
 vitest.mock("../fetchers/modelCache", () => ({
-	getModels: vitest.fn().mockImplementation(() => {
+	getModels: vitest.fn().mockImplementation(function () {
 		return Promise.resolve({
 			"coding/claude-4-sonnet": {
 				maxTokens: 8192,
@@ -76,6 +88,7 @@ describe("RequestyHandler", () => {
 				"X-Title": "Zoo Code",
 				"User-Agent": `ZooCode/${Package.version}`,
 			},
+			timeout: MOCK_TIMEOUT_MS,
 		})
 	})
 
@@ -91,6 +104,7 @@ describe("RequestyHandler", () => {
 				"X-Title": "Zoo Code",
 				"User-Agent": `ZooCode/${Package.version}`,
 			},
+			timeout: MOCK_TIMEOUT_MS,
 		})
 	})
 
@@ -247,6 +261,84 @@ describe("RequestyHandler", () => {
 
 			const generator = handler.createMessage("test", [])
 			await expect(generator.next()).rejects.toThrow("API Error")
+		})
+
+		it("streams reasoning chunks from delta.reasoning_content", async () => {
+			const handler = new RequestyHandler(mockOptions)
+			mockCreate.mockResolvedValue({
+				async *[Symbol.asyncIterator]() {
+					yield { id: "1", choices: [{ delta: { reasoning_content: "thinking..." } }] }
+					yield { id: "1", choices: [{ delta: { content: "answer" } }] }
+					yield {
+						id: "1",
+						choices: [{ delta: {} }],
+						usage: { prompt_tokens: 1, completion_tokens: 1 },
+					}
+				},
+			})
+
+			const chunks: any[] = []
+			for await (const chunk of handler.createMessage("sys", [{ role: "user", content: "hi" }])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toContainEqual({ type: "reasoning", text: "thinking..." })
+		})
+
+		it("falls back to delta.reasoning when reasoning_content is absent", async () => {
+			const handler = new RequestyHandler(mockOptions)
+			mockCreate.mockResolvedValue({
+				async *[Symbol.asyncIterator]() {
+					yield { id: "1", choices: [{ delta: { reasoning: "router-style thought" } }] }
+					yield {
+						id: "1",
+						choices: [{ delta: {} }],
+						usage: { prompt_tokens: 1, completion_tokens: 1 },
+					}
+				},
+			})
+
+			const chunks: any[] = []
+			for await (const chunk of handler.createMessage("sys", [{ role: "user", content: "hi" }])) {
+				chunks.push(chunk)
+			}
+
+			expect(chunks).toContainEqual({ type: "reasoning", text: "router-style thought" })
+		})
+
+		it("prefers delta.reasoning_content over delta.reasoning when both are present", async () => {
+			const handler = new RequestyHandler(mockOptions)
+
+			mockCreate.mockResolvedValue({
+				async *[Symbol.asyncIterator]() {
+					yield {
+						id: "1",
+						choices: [
+							{
+								delta: {
+									reasoning_content: "primary thought",
+									reasoning: "fallback thought",
+								},
+							},
+						],
+					}
+					yield {
+						id: "1",
+						choices: [{ delta: {} }],
+						usage: { prompt_tokens: 1, completion_tokens: 1 },
+					}
+				},
+			})
+
+			const chunks: any[] = []
+
+			for await (const chunk of handler.createMessage("sys", [{ role: "user", content: "hi" }])) {
+				chunks.push(chunk)
+			}
+
+			const reasoningChunks = chunks.filter((chunk) => chunk.type === "reasoning")
+
+			expect(reasoningChunks).toEqual([{ type: "reasoning", text: "primary thought" }])
 		})
 
 		describe("native tool support", () => {

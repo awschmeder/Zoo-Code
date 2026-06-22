@@ -1,7 +1,13 @@
 // npx vitest run src/api/providers/__tests__/vercel-ai-gateway.spec.ts
 
 // Mock vscode first to avoid import errors
-vitest.mock("vscode", () => ({}))
+vitest.mock("vscode", () => ({
+	workspace: {
+		getConfiguration: () => ({
+			get: (_key: string, defaultValue?: unknown) => defaultValue,
+		}),
+	},
+}))
 
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
@@ -12,9 +18,13 @@ import { vercelAiGatewayDefaultModelId, VERCEL_AI_GATEWAY_DEFAULT_TEMPERATURE } 
 
 // Mock dependencies
 vitest.mock("openai")
-vitest.mock("delay", () => ({ default: vitest.fn(() => Promise.resolve()) }))
+vitest.mock("delay", () => ({
+	default: vitest.fn(function () {
+		return Promise.resolve()
+	}),
+}))
 vitest.mock("../fetchers/modelCache", () => ({
-	getModels: vitest.fn().mockImplementation(() => {
+	getModels: vitest.fn().mockImplementation(function () {
 		return Promise.resolve({
 			"anthropic/claude-sonnet-4": {
 				maxTokens: 64000,
@@ -73,13 +83,15 @@ vitest.mock("../../transform/caching/vercel-ai-gateway", () => ({
 const mockCreate = vitest.fn()
 const mockConstructor = vitest.fn()
 
-;(OpenAI as any).mockImplementation(() => ({
-	chat: {
-		completions: {
-			create: mockCreate,
+;(OpenAI as any).mockImplementation(function () {
+	return {
+		chat: {
+			completions: {
+				create: mockCreate,
+			},
 		},
-	},
-}))
+	}
+})
 ;(OpenAI as any).mockImplementation = mockConstructor.mockReturnValue({
 	chat: {
 		completions: {
@@ -112,6 +124,7 @@ describe("VercelAiGatewayHandler", () => {
 				"X-Title": "Zoo Code",
 				"User-Agent": expect.stringContaining("ZooCode/"),
 			}),
+			timeout: expect.any(Number),
 		})
 	})
 
@@ -608,7 +621,7 @@ describe("VercelAiGatewayHandler", () => {
 			const handler = new VercelAiGatewayHandler(mockOptions)
 			const errorMessage = "API error"
 
-			mockCreate.mockImplementation(() => {
+			mockCreate.mockImplementation(function () {
 				throw new Error(errorMessage)
 			})
 

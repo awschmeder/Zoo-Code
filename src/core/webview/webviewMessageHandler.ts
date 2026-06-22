@@ -28,6 +28,7 @@ import { TelemetryService } from "@roo-code/telemetry"
 
 import { type ApiMessage } from "../task-persistence/apiMessages"
 import { saveTaskMessages } from "../task-persistence"
+import { importRooTaskHistory } from "../task-persistence/importRooTaskHistory"
 
 import { ClineProvider } from "./ClineProvider"
 import { handleCheckpointRestoreOperation } from "./checkpointRestoreHandler"
@@ -903,6 +904,92 @@ export const webviewMessageHandler = async (
 
 			break
 		}
+		case "importRooHistory": {
+			let latestProgress = {
+				copiedFileCount: 0,
+				totalFileCount: 0,
+				importedTaskCount: 0,
+				totalTaskCount: 0,
+			}
+
+			try {
+				await provider.postMessageToWebview({
+					type: "rooHistoryImportProgress",
+					rooHistoryImportProgress: {
+						status: "starting",
+						...latestProgress,
+					},
+				})
+
+				const result = await importRooTaskHistory(
+					provider.contextProxy.globalStorageUri.fsPath,
+					async (progress) => {
+						latestProgress = progress
+						await provider.postMessageToWebview({
+							type: "rooHistoryImportProgress",
+							rooHistoryImportProgress: {
+								status: "copying",
+								...progress,
+							},
+						})
+					},
+				)
+
+				if (result.foundTaskCount === 0) {
+					await provider.postMessageToWebview({
+						type: "rooHistoryImportProgress",
+						rooHistoryImportProgress: {
+							status: "finished",
+							...latestProgress,
+						},
+					})
+					vscode.window.showWarningMessage(
+						t("common:warnings.rooHistoryImport.nothingFound", { domain: result.rooExtensionDomain }),
+					)
+					break
+				}
+
+				// Refresh history whenever Roo tasks were found — even if all already existed —
+				// so a retry after a partial-copy failure still reconciles the store.
+				provider.taskHistoryStore.invalidateAll()
+				await provider.taskHistoryStore.reconcile()
+				await provider.taskHistoryStore.flushIndex()
+				await provider.postStateToWebview()
+				await provider.postMessageToWebview({
+					type: "rooHistoryImportProgress",
+					rooHistoryImportProgress: {
+						status: "finished",
+						...latestProgress,
+						copiedFileCount: result.importedFileCount,
+						totalFileCount: latestProgress.totalFileCount || result.importedFileCount,
+						importedTaskCount: result.importedTaskCount,
+						totalTaskCount: latestProgress.totalTaskCount || result.importedTaskCount,
+					},
+				})
+
+				if (result.importedTaskCount === 0) {
+					vscode.window.showWarningMessage(
+						t("common:warnings.rooHistoryImport.alreadyImported", { count: result.foundTaskCount }),
+					)
+				} else {
+					vscode.window.showInformationMessage(
+						t("common:info.rooHistoryImport.success", { count: result.importedTaskCount }),
+					)
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+				provider.log(`[importRooHistory] failed: ${message}`)
+				await provider.postMessageToWebview({
+					type: "rooHistoryImportProgress",
+					rooHistoryImportProgress: {
+						status: "failed",
+						...latestProgress,
+					},
+				})
+				vscode.window.showErrorMessage(t("common:errors.rooHistoryImport", { error: message }))
+			}
+			break
+		}
 		case "exportSettings":
 			await exportSettings({
 				providerSettingsManager: provider.providerSettingsManager,
@@ -1034,19 +1121,22 @@ export const webviewMessageHandler = async (
 				})
 			}
 
-			// Opencode Go is conditional on apiKey (its /models endpoint requires auth)
+			// Opencode Go's /models endpoint is public — it returns the full model list with no
+			// Authorization header — so it's fetched unconditionally like openrouter/vercel-ai-gateway
+			// above. Gating it behind a key meant the picker stayed empty (and fell back to the default
+			// model) whenever the key wasn't yet in apiConfiguration at fetch time. The key is still
+			// forwarded when present.
 			const opencodeGoApiKey = message?.values?.opencodeGoApiKey ?? apiConfiguration.opencodeGoApiKey
 
-			if (opencodeGoApiKey) {
-				if (message?.values?.opencodeGoApiKey) {
-					await flushModels({ provider: "opencode-go", apiKey: opencodeGoApiKey }, true)
-				}
-
-				candidates.push({
-					key: "opencode-go",
-					options: { provider: "opencode-go", apiKey: opencodeGoApiKey },
-				})
+			// Refresh the cache when a new key is explicitly provided (e.g. the Refresh Models button).
+			if (message?.values?.opencodeGoApiKey) {
+				await flushModels({ provider: "opencode-go", apiKey: opencodeGoApiKey }, true)
 			}
+
+			candidates.push({
+				key: "opencode-go",
+				options: { provider: "opencode-go", apiKey: opencodeGoApiKey },
+			})
 
 			// Apply single provider filter if specified
 			const modelFetchPromises = providerFilter

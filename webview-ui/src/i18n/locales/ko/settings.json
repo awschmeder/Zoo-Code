@@ -62,6 +62,24 @@
 		"debugMode": {
 			"label": "디버그 모드 활성화",
 			"description": "디버그 모드를 활성화하여 작업 헤더에 API 대화 기록과 UI 메시지를 임시 파일에 포맷된 JSON으로 볼 수 있는 추가 버튼을 표시합니다."
+		},
+		"rooHistoryImport": {
+			"settingLabel": "Roo Code에서 기록 가져오기",
+			"cardTitle": "Roo Code 기록",
+			"cardDescription": "저장된 Roo Code 대화를 Zoo Code로 복사합니다.",
+			"statusImporting": "기록 가져오는 중",
+			"statusFailed": "가져오기 실패",
+			"statusComplete": "가져오기 완료",
+			"buttonImporting": "Roo Code에서 가져오는 중...",
+			"buttonIdle": "Roo Code에서 기록 가져오기",
+			"summaryFailedWithFiles": "가져오기가 중단되기 전에 {{total}}개 중 {{copied}}개의 파일이 복사되었습니다.",
+			"summaryFailedNoFiles": "파일이 복사되기 전에 가져오기가 중단되었습니다.",
+			"summaryCopied": "{{total}}개 중 {{copied}}개 파일 복사됨",
+			"detailFailed": "다시 시도하려면 새 가져오기를 시작하세요.",
+			"detailTasksImported_one": "{{total}}개 중 {{count}}개의 작업 기록을 가져왔습니다.",
+			"detailTasksImported_other": "{{total}}개 중 {{count}}개의 작업 기록을 가져왔습니다.",
+			"detailPreparing": "Roo Code 기록 가져오기를 준비 중입니다.",
+			"progressAriaLabel": "Roo Code 기록 가져오기 진행률"
 		}
 	},
 	"slashCommands": {
@@ -544,6 +562,7 @@
 			"minimal": "최소 (가장 빠름)",
 			"high": "높음",
 			"xhigh": "매우 높음",
+			"max": "최대",
 			"medium": "중간",
 			"low": "낮음"
 		},
@@ -984,6 +1003,18 @@
 			"label": "채팅 글꼴 크기",
 			"description": "Zoo Code 채팅의 글꼴 크기(픽셀)를 설정합니다. VS Code 글꼴 크기에 맞추려면 기본값으로 두세요.",
 			"reset": "VS Code 기본값 사용"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Zoo가 열었던 파일 자동 닫기",
+			"description": "활성화 시, Zoo가 diff를 위해 일시적으로 열었던 편집기 탭이 변경 사항을 승인하거나 거부한 후 자동으로 닫힙니다. 편집 전에 사용자가 이미 열어 둔 탭은 자동으로 닫히지 않습니다."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "사용자 상호작용 후에도 자동 닫기",
+			"description": "활성화 시, 사용자가 편집 세션 중에 파일이나 diff를 클릭하거나 입력했더라도 Zoo가 열었던 탭이 닫힙니다. 'Zoo가 열었던 파일 자동 닫기'가 비활성화된 경우에는 효과가 없습니다."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "새로 만든 파일 자동 닫기",
+			"description": "활성화 시, Zoo가 수정한 것이 아니라 새로 만든 파일의 탭도 변경 사항을 승인한 후 자동으로 닫힙니다."
 		}
 	},
 	"skills": {

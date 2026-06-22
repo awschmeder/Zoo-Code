@@ -62,6 +62,24 @@
 		"debugMode": {
 			"label": "Ativar modo de debug",
 			"description": "Ative o modo de depuração para mostrar botões adicionais no cabeçalho da tarefa para visualizar o histórico de conversação da API e as mensagens da UI como JSON formatado em arquivos temporários."
+		},
+		"rooHistoryImport": {
+			"settingLabel": "Importar histórico do Roo Code",
+			"cardTitle": "Histórico do Roo Code",
+			"cardDescription": "Copiar conversas salvas do Roo Code para o Zoo Code.",
+			"statusImporting": "Importando histórico",
+			"statusFailed": "Falha na importação",
+			"statusComplete": "Importação concluída",
+			"buttonImporting": "Importando do Roo Code...",
+			"buttonIdle": "Importar histórico do Roo Code",
+			"summaryFailedWithFiles": "{{copied}} de {{total}} arquivos copiados antes da importação ser interrompida.",
+			"summaryFailedNoFiles": "A importação foi interrompida antes de qualquer arquivo ser copiado.",
+			"summaryCopied": "{{copied}} de {{total}} arquivos copiados",
+			"detailFailed": "Inicie uma nova tentativa de importação para tentar novamente.",
+			"detailTasksImported_one": "{{count}} de {{total}} histórico de tarefa importado.",
+			"detailTasksImported_other": "{{count}} de {{total}} históricos de tarefas importados.",
+			"detailPreparing": "Preparando a importação do histórico do Roo Code.",
+			"progressAriaLabel": "Progresso da importação do histórico do Roo Code"
 		}
 	},
 	"slashCommands": {
@@ -544,6 +562,7 @@
 			"minimal": "Mínimo (mais rápido)",
 			"high": "Alto",
 			"xhigh": "Muito alto",
+			"max": "Máximo",
 			"medium": "Médio",
 			"low": "Baixo"
 		},
@@ -984,6 +1003,18 @@
 			"label": "Tamanho da fonte do chat",
 			"description": "Defina o tamanho da fonte (em pixels) do chat do Zoo Code. Deixe no padrão para corresponder ao tamanho da fonte do VS Code.",
 			"reset": "Usar o padrão do VS Code"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "Fechar automaticamente arquivos abertos pelo Zoo",
+			"description": "Quando ativada, as abas do editor que o Zoo abriu temporariamente para um diff sao fechadas automaticamente apos aceitar ou rejeitar a modificacao. As abas que o usuario ja tinha abertas antes da edicao nunca sao fechadas automaticamente."
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "Fechar automaticamente mesmo apos interacao do usuario",
+			"description": "Quando ativada, as abas abertas pelo Zoo sao fechadas mesmo que o usuario tenha clicado ou digitado no arquivo ou diff durante a sessao de edicao. Nao tem efeito se 'Fechar automaticamente arquivos abertos pelo Zoo' estiver desativada."
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "Fechar automaticamente novos arquivos criados",
+			"description": "Quando ativada, as abas de arquivos que o Zoo criou (em vez de modificar) tambem sao fechadas automaticamente apos aceitar a modificacao."
 		}
 	},
 	"skills": {

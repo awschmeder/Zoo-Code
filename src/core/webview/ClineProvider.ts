@@ -47,6 +47,7 @@ import {
 	getModelId,
 	isRetiredProvider,
 } from "@roo-code/types"
+import { RateLimitClock, createRateLimitClock } from "../task/RateLimitClock"
 import { aggregateTaskCostsRecursive, type AggregatedCosts } from "./aggregateTaskCosts"
 import { TelemetryService } from "@roo-code/telemetry"
 import { CloudService, getRooCodeApiUrl } from "@roo-code/cloud"
@@ -167,6 +168,7 @@ export class ClineProvider
 	private taskEventListeners: WeakMap<Task, Array<() => void>> = new WeakMap()
 	private currentWorkspacePath: string | undefined
 	private _disposed = false
+	private readonly rateLimitClock: RateLimitClock = createRateLimitClock()
 
 	private recentTasksCache?: string[]
 	public readonly taskHistoryStore: TaskHistoryStore
@@ -193,7 +195,7 @@ export class ClineProvider
 
 	public isViewLaunched = false
 	public settingsImportedAt?: number
-	public readonly latestAnnouncementId = "jun-2026-v3.60.0-fable5-gpt55-mcp-allowlists-rootresolution" // v3.60.0 Fable 5, GPT-5.5, per-mode MCP allowlists, workspace rootResolution
+	public readonly latestAnnouncementId = "jun-2026-v3.62.0-glm52-opencodego-toolwriter" // v3.62.0 GLM-5.2, OpenCode-Go native model params & routing, tool-writer mode
 	public readonly providerSettingsManager: ProviderSettingsManager
 	public readonly customModesManager: CustomModesManager
 
@@ -1093,6 +1095,7 @@ export class ClineProvider
 			startTask: options?.startTask ?? true,
 			// Preserve the status from the history item to avoid overwriting it when the task saves messages
 			initialStatus: historyItem.status,
+			rateLimitClock: this.rateLimitClock,
 		})
 
 		if (isRehydratingCurrentTask) {
@@ -1716,7 +1719,7 @@ export class ClineProvider
 	// OpenRouter
 
 	async handleOpenRouterCallback(code: string) {
-		let { apiConfiguration, currentApiConfigName = "default" } = await this.getState()
+		const { apiConfiguration, currentApiConfigName = "default" } = await this.getState()
 
 		let apiKey: string
 
@@ -1831,7 +1834,7 @@ export class ClineProvider
 	// Requesty
 
 	async handleRequestyCallback(code: string, baseUrl: string | null) {
-		let { apiConfiguration } = await this.getState()
+		const { apiConfiguration } = await this.getState()
 
 		const newConfiguration: ProviderSettings = {
 			...apiConfiguration,
@@ -2275,6 +2278,9 @@ export class ClineProvider
 			openRouterImageApiKey,
 			openRouterImageGenerationSelectedModel,
 			lockApiConfigAcrossModes,
+			autoCloseZooOpenedFiles,
+			autoCloseZooOpenedFilesAfterUserEdited,
+			autoCloseZooOpenedNewFiles,
 		} = await this.getState()
 
 		let cloudOrganizations: CloudOrganizationMembership[] = []
@@ -2454,6 +2460,9 @@ export class ClineProvider
 			imageGenerationProvider,
 			openRouterImageApiKey,
 			openRouterImageGenerationSelectedModel,
+			autoCloseZooOpenedFiles: autoCloseZooOpenedFiles ?? true,
+			autoCloseZooOpenedFilesAfterUserEdited: autoCloseZooOpenedFilesAfterUserEdited ?? false,
+			autoCloseZooOpenedNewFiles: autoCloseZooOpenedNewFiles ?? false,
 			openAiCodexIsAuthenticated: await (async () => {
 				try {
 					const { openAiCodexOAuthManager } = await import("../../integrations/openai-codex/oauth")
@@ -2528,9 +2537,9 @@ export class ClineProvider
 			)
 		}
 
-		let sharingEnabled: boolean = false
+		const sharingEnabled: boolean = false
 
-		let publicSharingEnabled: boolean = false
+		const publicSharingEnabled: boolean = false
 
 		let organizationSettingsVersion: number = -1
 
@@ -2545,7 +2554,7 @@ export class ClineProvider
 			)
 		}
 
-		let taskSyncEnabled: boolean = false
+		const taskSyncEnabled: boolean = false
 
 		// Return the same structure as before.
 		return {
@@ -2654,6 +2663,9 @@ export class ClineProvider
 			imageGenerationProvider: stateValues.imageGenerationProvider,
 			openRouterImageApiKey: stateValues.openRouterImageApiKey,
 			openRouterImageGenerationSelectedModel: stateValues.openRouterImageGenerationSelectedModel,
+			autoCloseZooOpenedFiles: stateValues.autoCloseZooOpenedFiles,
+			autoCloseZooOpenedFilesAfterUserEdited: stateValues.autoCloseZooOpenedFilesAfterUserEdited,
+			autoCloseZooOpenedNewFiles: stateValues.autoCloseZooOpenedNewFiles,
 		}
 	}
 
@@ -3064,6 +3076,7 @@ export class ClineProvider
 			// its initial state update, so state.currentTaskId is available ASAP.
 			startTask: false,
 			...options,
+			rateLimitClock: this.rateLimitClock,
 		})
 
 		await this.addClineToStack(task)

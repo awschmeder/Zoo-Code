@@ -62,6 +62,24 @@
 		"debugMode": {
 			"label": "啟用偵錯模式",
 			"description": "啟用偵錯模式以在工作標題顯示額外按鈕，用於在暫存檔案中檢視 API 對話歷史記錄和 UI 訊息的格式化 JSON。"
+		},
+		"rooHistoryImport": {
+			"settingLabel": "從 Roo Code 匯入歷史記錄",
+			"cardTitle": "Roo Code 歷史記錄",
+			"cardDescription": "將已儲存的 Roo Code 對話複製到 Zoo Code。",
+			"statusImporting": "正在匯入歷史記錄",
+			"statusFailed": "匯入失敗",
+			"statusComplete": "匯入完成",
+			"buttonImporting": "正在從 Roo Code 匯入...",
+			"buttonIdle": "從 Roo Code 匯入歷史記錄",
+			"summaryFailedWithFiles": "匯入停止前已複製 {{total}} 個檔案中的 {{copied}} 個。",
+			"summaryFailedNoFiles": "匯入在複製任何檔案之前已停止。",
+			"summaryCopied": "已複製 {{total}} 個檔案中的 {{copied}} 個",
+			"detailFailed": "開始新的匯入嘗試以重試。",
+			"detailTasksImported_one": "已匯入 {{total}} 個工作歷史記錄中的 {{count}} 個。",
+			"detailTasksImported_other": "已匯入 {{total}} 個工作歷史記錄中的 {{count}} 個。",
+			"detailPreparing": "正在準備匯入 Roo Code 歷史記錄。",
+			"progressAriaLabel": "Roo Code 歷史記錄匯入進度"
 		}
 	},
 	"slashCommands": {
@@ -112,6 +130,18 @@
 			"label": "聊天字型大小",
 			"description": "設定 Zoo Code 聊天的字型大小（以像素為單位）。保留預設值以符合 VS Code 的字型大小。",
 			"reset": "使用 VS Code 預設值"
+		},
+		"autoCloseZooOpenedFiles": {
+			"label": "自動關閉 Zoo 開啟的檔案",
+			"description": "啟用後，Zoo 為 diff 暫時開啟的編輯器分頁將在接受或拒絕變更後自動關閉。使用者在編輯前已開啟的分頁不會被自動關閉。"
+		},
+		"autoCloseZooOpenedFilesAfterUserEdited": {
+			"label": "使用者操作後也自動關閉",
+			"description": "啟用後，即使使用者在編輯工作階段中點擊或輸入了檔案或 diff，Zoo 開啟的分頁也會被關閉。若「自動關閉 Zoo 開啟的檔案」已停用，則此選項無效。"
+		},
+		"autoCloseZooOpenedNewFiles": {
+			"label": "自動關閉新建立的檔案",
+			"description": "啟用後，Zoo 新建（而非修改）的檔案分頁在接受變更後也會自動關閉。"
 		}
 	},
 	"prompts": {
@@ -560,7 +590,8 @@
 			"low": "低",
 			"medium": "中",
 			"high": "高",
-			"xhigh": "超高"
+			"xhigh": "超高",
+			"max": "最高"
 		},
 		"verbosity": {
 			"label": "輸出詳細程度",
