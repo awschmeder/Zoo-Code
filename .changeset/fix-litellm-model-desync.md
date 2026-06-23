@@ -13,10 +13,10 @@ Two bugs are addressed:
    URL-scoped providers use `provider:baseUrl`; key-scoped providers (LiteLLM, Poe, Requesty)
    additionally include a short, irreversible discriminator derived from the API key
    (`provider:baseUrl:<discriminator>`) so that two different API keys on the same server never share
-   a cache entry (relevant when the server enforces per-key model allowlists). The discriminator is a
-   32-bit value derived via PBKDF2 and truncated so it cannot be reversed to identify the API key
-   that is written to the on-disk cache filename. The `RouterProvider.getModel()` cold-start fallback
-   is also corrected to pass the full options so it resolves the same compound key.
+   a cache entry (relevant when the server enforces per-key model allowlists). Both the discriminator
+   and the on-disk filename digest are derived via truncated PBKDF2 so neither can be reversed to
+   identify the API key written to the cache filename. The `RouterProvider.getModel()` cold-start
+   fallback is also corrected to pass the full options so it resolves the same compound key.
 
 2. **Silent fallback to hardcoded default**: When the LiteLLM model list was empty (due to the
    collision above, a failed sync, or a transient error), `useSelectedModel` reset the configured
