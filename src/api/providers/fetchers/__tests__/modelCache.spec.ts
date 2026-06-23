@@ -525,8 +525,8 @@ describe("compound cache key derivation across scoping dimensions", () => {
 		vi.clearAllMocks()
 		const MockedNodeCache = vi.mocked(NodeCache)
 		const mockCache = new MockedNodeCache()
-		mockCache.get.mockReturnValue(undefined)
-		mockSet = mockCache.set
+		;(mockCache.get as Mock).mockReturnValue(undefined)
+		mockSet = mockCache.set as unknown as Mock
 		mockGetLiteLLMModels.mockResolvedValue(mockModels)
 		mockGetOpenRouterModels.mockResolvedValue(mockModels)
 	})

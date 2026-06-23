@@ -197,8 +197,7 @@ async function fetchModelsFromProvider(options: GetModelsOptions): Promise<Model
 			models = await getUnboundModels(options.apiKey)
 			break
 		case "litellm":
-			// Type safety ensures apiKey and baseUrl are always provided for LiteLLM.
-			models = await getLiteLLMModels(options.apiKey, options.baseUrl)
+			models = await getLiteLLMModels(options.apiKey ?? "", options.baseUrl)
 			break
 		case "ollama":
 			models = await getOllamaModels(options.baseUrl, options.apiKey)
