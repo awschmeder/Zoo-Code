@@ -434,3 +434,73 @@ describe("empty cache protection", () => {
 		})
 	})
 })
+
+describe("key-scoped cache key derivation", () => {
+	// Exercises the per-API-key cache discriminator that all KEY_SCOPED_PROVIDERS share.
+	// Requesty is used only because it is a key-scoped provider with a mocked fetcher; the
+	// behavior under test is provider-agnostic.
+	const keyScopedProvider = "requesty" as const
+
+	let mockCache: any
+	let mockSet: Mock
+
+	const mockModels = {
+		"key-scoped/model": {
+			maxTokens: 4096,
+			contextWindow: 200000,
+			supportsPromptCache: false,
+			description: "Key-scoped provider model",
+		},
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks()
+		const MockedNodeCache = vi.mocked(NodeCache)
+		mockCache = new MockedNodeCache()
+		mockCache.get.mockReturnValue(undefined)
+		mockSet = mockCache.set
+		mockGetRequestyModels.mockResolvedValue(mockModels)
+	})
+
+	// Returns the cache key the result was written under (first arg of the matching set call).
+	const writtenCacheKey = (): string => {
+		const call = mockSet.mock.calls.find((c) => c[1] === mockModels)
+		return call?.[0] as string
+	}
+
+	it("writes different cache keys for different API keys", async () => {
+		await getModels({ provider: keyScopedProvider, apiKey: "key-one" })
+		const firstKey = writtenCacheKey()
+
+		mockSet.mockClear()
+		await getModels({ provider: keyScopedProvider, apiKey: "key-two" })
+		const secondKey = writtenCacheKey()
+
+		expect(firstKey).toBeDefined()
+		expect(secondKey).toBeDefined()
+		expect(firstKey).not.toEqual(secondKey)
+	})
+
+	it("writes the same cache key for repeated calls with the same API key", async () => {
+		await getModels({ provider: keyScopedProvider, apiKey: "stable-key" })
+		const firstKey = writtenCacheKey()
+
+		mockSet.mockClear()
+		await getModels({ provider: keyScopedProvider, apiKey: "stable-key" })
+		const secondKey = writtenCacheKey()
+
+		expect(firstKey).toEqual(secondKey)
+	})
+
+	it("does not embed the raw API key in the cache key and truncates the discriminator", async () => {
+		const apiKey = "super-secret-api-key-value"
+		await getModels({ provider: keyScopedProvider, apiKey })
+		const cacheKey = writtenCacheKey()
+
+		// The raw secret must never appear in the on-disk-bound cache key.
+		expect(cacheKey).not.toContain(apiKey)
+		// The discriminator is the trailing key-component: an 8-char (32-bit) hex string.
+		const discriminator = cacheKey.split(":").pop() as string
+		expect(discriminator).toMatch(/^[0-9a-f]{8}$/)
+	})
+})

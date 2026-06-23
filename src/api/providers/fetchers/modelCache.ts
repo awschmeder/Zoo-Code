@@ -1,7 +1,7 @@
 import * as path from "path"
 import fs from "fs/promises"
 import * as fsSync from "fs"
-import { createHash } from "crypto"
+import { createHash, pbkdf2Sync } from "crypto"
 
 import NodeCache from "node-cache"
 import { z } from "zod"
@@ -71,14 +71,51 @@ function isAuthScopedProvider(provider: RouterName): boolean {
 	return AUTH_SCOPED_PROVIDERS.has(provider)
 }
 
+// Memoize derived discriminators so the deliberately-structureless KDF runs at most once
+// per distinct secret per session (getCacheKey runs on every cache lookup).
+const apiKeyDiscriminatorCache = new Map<string, string>()
+
+// Fixed, non-secret application salt. This is NOT credential storage: it derives a short,
+// stable cache-key discriminator from the API key so two different keys on the same server
+// never share a cache entry. PBKDF2 is used (over a plain hash) only to obtain a uniform,
+// structureless mapping with no exploitable internal structure; the iteration count is
+// intentionally modest because security here rests on truncation, not on KDF slowness.
+const API_KEY_DISCRIMINATOR_SALT = "zoo-model-cache-key-v1"
+const API_KEY_DISCRIMINATOR_ITERATIONS = 10_000
+// 4 bytes (8 hex chars) = 32 bits. This is deliberately far smaller than the entropy of a
+// real API key: collisions across the handful of keys a single user configures are
+// negligible (birthday bound ~ n^2 / 2^33), while the output is small enough that any
+// preimage search yields an astronomically large set of candidate keys -- so the value
+// written to the on-disk cache filename cannot be reversed to identify the actual key.
+const API_KEY_DISCRIMINATOR_BYTES = 4
+
+/**
+ * Derive a short, irreversible, non-identifying cache-key discriminator from an API key.
+ * See the constants above for the rationale behind the algorithm and parameter choices.
+ */
+function deriveApiKeyDiscriminator(apiKey: string): string {
+	const cached = apiKeyDiscriminatorCache.get(apiKey)
+	if (cached) return cached
+	const discriminator = pbkdf2Sync(
+		apiKey,
+		API_KEY_DISCRIMINATOR_SALT,
+		API_KEY_DISCRIMINATOR_ITERATIONS,
+		API_KEY_DISCRIMINATOR_BYTES,
+		"sha256",
+	).toString("hex")
+	apiKeyDiscriminatorCache.set(apiKey, discriminator)
+	return discriminator
+}
+
 /**
  * Build a cache key that is unique per provider+server+key combination.
  *
  * - URL-scoped providers include the normalized baseUrl so that two different servers
  *   of the same provider type never share a cache entry.
- * - Key-scoped providers additionally fold in a short sha256 hash of the API key so that
- *   two different API keys on the same server never share a cache entry (relevant when
- *   the server enforces per-key model allowlists, e.g. LiteLLM, Poe, Requesty).
+ * - Key-scoped providers additionally fold in a short, irreversible discriminator derived
+ *   from the API key so that two different API keys on the same server never share a cache
+ *   entry (relevant when the server enforces per-key model allowlists, e.g. LiteLLM, Poe,
+ *   Requesty). See deriveApiKeyDiscriminator for why the value cannot be reversed to the key.
  */
 function getCacheKey(options: GetModelsOptions): string {
 	const { provider } = options
@@ -90,14 +127,7 @@ function getCacheKey(options: GetModelsOptions): string {
 	// different keys on the default server would collapse to the same entry).
 	// Strip trailing slashes so "http://host:4000/" and "http://host:4000" map to the same key.
 	const urlPart = isUrlScoped && options.baseUrl ? options.baseUrl.replace(/\/+$/, "") : undefined
-	// Short (16-char) sha256 prefix -- enough to make collisions effectively impossible.
-	// Not a password hash -- SHA-256 is used here purely as a cache key discriminator to
-	// distinguish between different API keys on the same server. It is never used for
-	// authentication or stored as a credential.
-	const keyPart =
-		isKeyScoped && options.apiKey
-			? createHash("sha256").update(options.apiKey).digest("hex").slice(0, 16)
-			: undefined
+	const keyPart = isKeyScoped && options.apiKey ? deriveApiKeyDiscriminator(options.apiKey) : undefined
 
 	if (urlPart && keyPart) return `${provider}:${urlPart}:${keyPart}`
 	if (urlPart) return `${provider}:${urlPart}`
