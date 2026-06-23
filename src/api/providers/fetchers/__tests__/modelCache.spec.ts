@@ -504,3 +504,69 @@ describe("key-scoped cache key derivation", () => {
 		expect(discriminator).toMatch(/^[0-9a-f]{8}$/)
 	})
 })
+
+describe("compound cache key derivation across scoping dimensions", () => {
+	// Exercises every branch of getCacheKey via the public getModels() entry point.
+	// litellm is url-scoped AND key-scoped; openrouter is neither, so it hits the bare
+	// provider fallback. The fetcher mocks let us observe the cache key the result is
+	// written under (first arg of the matching memoryCache.set call).
+	const mockModels = {
+		"compound/model": {
+			maxTokens: 4096,
+			contextWindow: 200000,
+			supportsPromptCache: false,
+			description: "Compound cache key model",
+		},
+	}
+
+	let mockSet: Mock
+
+	beforeEach(() => {
+		vi.clearAllMocks()
+		const MockedNodeCache = vi.mocked(NodeCache)
+		const mockCache = new MockedNodeCache()
+		mockCache.get.mockReturnValue(undefined)
+		mockSet = mockCache.set
+		mockGetLiteLLMModels.mockResolvedValue(mockModels)
+		mockGetOpenRouterModels.mockResolvedValue(mockModels)
+	})
+
+	const writtenCacheKey = (): string => {
+		const call = mockSet.mock.calls.find((c) => c[1] === mockModels)
+		return call?.[0] as string
+	}
+
+	it("includes both the server URL and the key discriminator for url+key-scoped providers", async () => {
+		await getModels({ provider: "litellm", apiKey: "compound-key", baseUrl: "http://host:4000" })
+		const cacheKey = writtenCacheKey()
+
+		// Expected shape: provider:url:keyDiscriminator
+		expect(cacheKey).toMatch(/^litellm:http:\/\/host:4000:[0-9a-f]{8}$/)
+	})
+
+	it("normalizes trailing slashes in the server URL so equivalent URLs share a cache key", async () => {
+		await getModels({ provider: "litellm", apiKey: "compound-key", baseUrl: "http://host:4000/" })
+		const withSlash = writtenCacheKey()
+
+		mockSet.mockClear()
+		await getModels({ provider: "litellm", apiKey: "compound-key", baseUrl: "http://host:4000" })
+		const withoutSlash = writtenCacheKey()
+
+		expect(withSlash).toEqual(withoutSlash)
+	})
+
+	it("includes only the server URL when a url-scoped provider has no API key", async () => {
+		await getModels({ provider: "litellm", baseUrl: "http://host:4000" })
+		const cacheKey = writtenCacheKey()
+
+		// No trailing key discriminator when apiKey is absent.
+		expect(cacheKey).toBe("litellm:http://host:4000")
+	})
+
+	it("falls back to the bare provider name for providers that are neither url- nor key-scoped", async () => {
+		await getModels({ provider: "openrouter", apiKey: "ignored-key", baseUrl: "http://ignored:4000" })
+		const cacheKey = writtenCacheKey()
+
+		expect(cacheKey).toBe("openrouter")
+	})
+})
