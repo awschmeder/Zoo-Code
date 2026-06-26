@@ -68,6 +68,10 @@ export class NativeToolCallParser {
 		{
 			id?: string
 			name: string
+			// Tracks whether a name field has been observed at all, distinct from a
+			// truthy name. This is a defensive guard: should a provider ever send an
+			// empty name, the start-gate must not rely on name truthiness.
+			nameSeen: boolean
 			hasStarted: boolean
 			deltaBuffer: string[]
 		}
@@ -113,6 +117,7 @@ export class NativeToolCallParser {
 			tracked = {
 				id,
 				name: name || "",
+				nameSeen: name !== undefined,
 				hasStarted: false,
 				deltaBuffer: [],
 			}
@@ -123,13 +128,14 @@ export class NativeToolCallParser {
 		if (id) {
 			tracked.id = id
 		}
-		if (name) {
+		if (name !== undefined) {
 			tracked.name = name
+			tracked.nameSeen = true
 		}
 
 		// Emit start event only once both id and name are known. Using a local
 		// non-null id keeps emitted events typed as id: string.
-		if (!tracked.hasStarted && tracked.id && tracked.name) {
+		if (!tracked.hasStarted && tracked.id && tracked.nameSeen) {
 			const startedId = tracked.id
 			events.push({
 				type: "tool_call_start",
@@ -184,6 +190,9 @@ export class NativeToolCallParser {
 					})
 				}
 			}
+			// Clear so a subsequent finalizeRawChunks() is a safe no-op and cannot
+			// double-fire end events for the same trackers.
+			this.rawChunkTracker.clear()
 		}
 
 		return events
