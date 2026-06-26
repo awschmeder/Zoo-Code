@@ -432,6 +432,52 @@ describe("empty cache protection", () => {
 			expect(result1).toEqual(mockModels)
 			expect(result2).toEqual(mockModels)
 		})
+
+		it("scopes in-flight dedup by API key for key-scoped providers", async () => {
+			// In-flight dedup is keyed on the compound cache key, so concurrent refreshes for a
+			// key-scoped provider must dedup only when the API key matches. Two different keys
+			// (different compound keys) each trigger their own fetch; the same key shares one.
+			const mockModels = {
+				"requesty/model": {
+					maxTokens: 4096,
+					contextWindow: 200000,
+					supportsPromptCache: false,
+					description: "Requesty model",
+				},
+			}
+			mockGetRequestyModels.mockResolvedValue(mockModels)
+
+			const { refreshModels } = await import("../modelCache")
+
+			// Different keys -> separate compound keys -> two distinct fetches.
+			const [a, b] = await Promise.all([
+				refreshModels({ provider: "requesty", apiKey: "key-one" }),
+				refreshModels({ provider: "requesty", apiKey: "key-two" }),
+			])
+			expect(mockGetRequestyModels).toHaveBeenCalledTimes(2)
+			expect(a).toEqual(mockModels)
+			expect(b).toEqual(mockModels)
+
+			mockGetRequestyModels.mockClear()
+
+			// Same key -> same compound key -> a single shared in-flight fetch.
+			let resolveShared: (value: typeof mockModels) => void
+			mockGetRequestyModels.mockReturnValue(
+				new Promise<typeof mockModels>((resolve) => {
+					resolveShared = resolve
+				}),
+			)
+
+			const shared1 = refreshModels({ provider: "requesty", apiKey: "same-key" })
+			const shared2 = refreshModels({ provider: "requesty", apiKey: "same-key" })
+
+			expect(mockGetRequestyModels).toHaveBeenCalledTimes(1)
+
+			resolveShared!(mockModels)
+			const [s1, s2] = await Promise.all([shared1, shared2])
+			expect(s1).toEqual(mockModels)
+			expect(s2).toEqual(mockModels)
+		})
 	})
 })
 

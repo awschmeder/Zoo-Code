@@ -310,7 +310,13 @@ export const refreshModels = async (options: GetModelsOptions): Promise<ModelRec
 		}
 	}
 
-	// Create the refresh promise and track it
+	// Create the refresh promise and track it.
+	//
+	// The `finally` cleanup below runs only after the first `await` inside this async
+	// function yields, which cannot happen until the current synchronous run -- including
+	// the `inFlightRefresh.set(cacheKey, ...)` registration below -- has completed. So the
+	// entry is always present in the map before `finally` can delete it; the registration
+	// can never be lost to a microtask race even if the fetch resolves immediately.
 	const refreshPromise = (async (): Promise<ModelRecord> => {
 		try {
 			// Force fresh API fetch - skip getModelsFromCache() check

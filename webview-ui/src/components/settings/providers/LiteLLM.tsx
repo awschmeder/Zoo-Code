@@ -57,9 +57,12 @@ export const LiteLLM = ({
 				if (refreshStatus === "loading") {
 					if (!litellmErrorJustReceived.current) {
 						setRefreshStatus("success")
-						// Invalidate the react-query router models cache so
-						// useSelectedModel picks up the refreshed list.
-						queryClient.invalidateQueries({ queryKey: ["routerModels"] })
+						// Invalidate only the LiteLLM router-models query so useSelectedModel
+						// picks up the refreshed list. useSelectedModel reads LiteLLM under the
+						// compound key ["routerModels", "litellm"] (see useRouterModels), so we
+						// target that exact key rather than the bare ["routerModels"] prefix,
+						// which would needlessly invalidate every other provider's query too.
+						queryClient.invalidateQueries({ queryKey: ["routerModels", "litellm"] })
 					}
 					// If litellmErrorJustReceived.current is true, status is already (or will be) "error".
 				}

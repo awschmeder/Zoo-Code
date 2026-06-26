@@ -62,7 +62,13 @@ export abstract class RouterProvider extends BaseProvider {
 	}
 
 	override getModel(): { id: string; info: ModelInfo } {
-		const id = this.modelId ?? this.defaultModelId
+		// Use `||` (not `??`) so an empty-string modelId also falls back to the default,
+		// guaranteeing a non-empty id rather than forwarding "" to the API as an invalid
+		// request. Note this guarantees non-empty, not viable: defaultModelId is provider-
+		// supplied and may not be a model that actually exists on the user's server (e.g.
+		// OpenAI-compatible have no inherent default), so a configured-but-empty selection
+		// can still resolve to a model the server rejects.
+		const id = this.modelId || this.defaultModelId
 
 		// First check instance models (populated by fetchModel)
 		if (this.models[id]) {
