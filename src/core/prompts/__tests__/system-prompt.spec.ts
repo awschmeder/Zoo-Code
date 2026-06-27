@@ -548,10 +548,10 @@ describe("SYSTEM_PROMPT", () => {
 			settings, // settings
 		)
 
-		// Should contain TOOL USE PROTOCOL section with built-in mechanism note
+		// Should contain TOOL USE PROTOCOL section
 		expect(prompt).toContain("TOOL USE PROTOCOL")
-		expect(prompt).toContain("built-in tool-calling mechanism")
-		expect(prompt).toContain("never embed markup")
+		expect(prompt).toContain("function-calling schema")
+		expect(prompt).toContain("not text formatted to look like markup")
 
 		// Should NOT contain XML-style tags or examples
 		expect(prompt).not.toContain("<actual_tool_name>")
