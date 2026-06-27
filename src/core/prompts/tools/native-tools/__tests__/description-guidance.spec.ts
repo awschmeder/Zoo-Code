@@ -55,6 +55,10 @@ describe("native tool description guidance (Pt.2)", () => {
 			expect(description).toContain("do not need to ask the user to confirm")
 			// allows honest reporting of an unresolved failure
 			expect(description).toContain("partial or failed outcome")
+			// requires calling out incomplete steps and manual follow-up instructions when blocked/unable to test
+			expect(description).toContain("unable to complete some steps")
+			expect(description).toContain("sufficient access or ability to test")
+			expect(description).toContain("manual steps are required")
 		})
 	})
 
@@ -72,6 +76,18 @@ describe("native tool description guidance (Pt.2)", () => {
 			expect(description).toContain("lookarounds")
 			expect(description).toContain("backreferences")
 			expect(description).toContain("(?i)")
+		})
+
+		it("codebase_search explicitly warns against specific keyword, symbol, or filename lookups", () => {
+			const description = descriptionOf(codebaseSearch)
+			expect(description).toContain("Do NOT use codebase_search to look up exact keywords")
+			expect(description).toContain("specific term, literal, or identifier")
+			expect(description).toContain("repetitive")
+		})
+
+		it("search_files provides guidance on matching specific symbol, keyword, class, or variable names", () => {
+			const description = descriptionOf(searchFiles)
+			expect(description).toContain("such as a specific keyword, function name, class name, or variable name")
 		})
 
 		it("skill surfaces the must-use-skills precondition and contrasts with run_slash_command", () => {

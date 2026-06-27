@@ -2,7 +2,7 @@ import type OpenAI from "openai"
 
 const LIST_FILES_DESCRIPTION = `Request to list files and directories within the specified directory. If recursive is true, it will list all files and directories recursively. If recursive is false or not provided, it will only list the top-level contents. Do not use this tool to confirm the existence of files you may have created, as the user will let you know if the files were created successfully or not.
 
-When to use this tool: use list_files to enumerate files or understand directory structure. To search file *contents* for a known text or regex pattern, use search_files; to find code by concept or meaning rather than structure, use codebase_search.
+When to use this tool: use list_files to enumerate files or understand directory structure. To search file *contents* for a known text or regex pattern, use search_files; to find code by concept or meaning rather than structure, use the codebase_search tool if it is available.
 
 Parameters:
 - path: (required) The path of the directory to list contents for (relative to the current workspace directory)

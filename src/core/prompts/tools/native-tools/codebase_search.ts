@@ -2,7 +2,9 @@ import type OpenAI from "openai"
 
 const CODEBASE_SEARCH_DESCRIPTION = `Find files most relevant to the search query using semantic search. Searches based on meaning rather than exact text matches. By default searches entire workspace. Reuse the user's exact wording unless there's a clear reason not to - their phrasing often helps semantic search. Queries MUST be in English (translate if needed).
 
-When to use this tool: prefer semantic search when exploring an unfamiliar area by concept or behavior (e.g. "where is retry logic handled") and you do not yet know the exact symbol, file, or literal. Prefer search_files when you already know an exact symbol name, string literal, or regex pattern, and prefer read_file when you already know the specific path to open. These tools complement each other -- use whichever matches what you currently know.
+When to use this tool: codebase_search is the primary tool for codebase exploration when exploring an unfamiliar area by concept or behavior (e.g. "where is retry logic handled") and you do not yet know the exact symbol, file, or literal. For precise matching of known terms, symbols, or patterns, use search_files. To examine directory structure, use list_files. To open a specific file path, prefer read_file.
+
+NOTE: Do NOT use codebase_search to look up exact keywords, symbol names, function/method/class/variable names, or filenames. If you already have a specific term, literal, or identifier in mind, always use search_files or list_files instead. Avoid running consecutive or repetitive codebase_searches to explore; use it at most a few times to get oriented, then transition to precise search or read tools.
 
 Failure modes and recovery: this tool returns results only when the workspace index is available. If indexing is disabled, still building, incomplete, or unreachable, it can return empty or low-confidence results without an explicit error. When results are empty or clearly off-target, do NOT re-run the same query -- fall back to search_files (for known text/patterns) or read_file (for known paths) instead.
 
