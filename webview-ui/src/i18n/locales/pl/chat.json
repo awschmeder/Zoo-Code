@@ -40,6 +40,14 @@
 		"title": "Rozpocznij nowe zadanie",
 		"tooltip": "Rozpocznij nowe zadanie"
 	},
+	"seeNewChanges": {
+		"title": "Zobacz nowe zmiany",
+		"tooltip": "Wyświetl zmiany wprowadzone od twojego ostatniego promptu"
+	},
+	"restoreChanges": {
+		"title": "Przywróć zmiany",
+		"tooltip": "Przywróć pliki i stan zadania do twojego ostatniego promptu"
+	},
 	"proceedAnyways": {
 		"title": "Kontynuuj mimo to",
 		"tooltip": "Kontynuuj podczas wykonywania polecenia"
@@ -333,9 +341,9 @@
 		"support": "Wesprzyj Zoo Code, dając nam gwiazdkę na <githubLink>GitHub</githubLink>.",
 		"release": {
 			"heading": "Co nowego:",
-			"highlight1": "Nowe modele AI — Claude Fable 5 dla wszystkich dostawców Anthropic i OpenAI GPT-5.5 są teraz dostępne w ustawieniach dostawcy.",
-			"highlight2": "Allowlisty MCP per tryb — ogranicz, które serwery MCP są aktywne dla każdego trybu, używając nowej allowlisty w konfiguracji trybu.",
-			"highlight3": "Ustawienie rootResolution dla workspace — nowe ustawienie kontrolujące sposób rozwiązywania ścieżek plików w środowiskach wielokorzeniowych."
+			"highlight1": "Interfejs zarządzania regułami — nowa karta Reguły w Ustawieniach umożliwia tworzenie, usuwanie i otwieranie globalnych i obszaru roboczego reguł Zoo bezpośrednio z edytora.",
+			"highlight2": "Przegląd zmian ukończenia — po zakończeniu zadania nowe przyciski \"Zobacz nowe zmiany\" i \"Przywróć zmiany\" pozwalają sprawdzić i cofnąć zmiany z ostatniego polecenia.",
+			"highlight3": "Złagodzone progi diff — konfigurowalne progi podobieństwa zmniejszają błędy \"edycja nieudana\" podczas stosowania diffów, z nowymi diagnostykami pomagającymi dostroić ustawienia."
 		},
 		"cloudAgents": {
 			"heading": "Nowości w chmurze:",

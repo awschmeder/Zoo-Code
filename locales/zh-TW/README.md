@@ -30,11 +30,11 @@
 
 你可以在 [Roo→Zoo 遷移指南](https://docs.zoocode.dev/roo-to-zoo-migration) 中找到從 Roo Code 遷移到 Zoo Code 的快速說明。我們希望在大家轉移過程中盡可能提供協助，這也是我們設立 [Reddit](https://www.reddit.com/r/ZooCode) 和 [Discord](https://discord.gg/VxfP4Vx3gX) 社群的原因。如果你遇到問題或有任何疑問，歡迎加入後直接提問。
 
-## v3.60.0 新功能
+## v3.64.0 新功能
 
-- **Fable 5 + GPT-5.5** — Claude Fable 5（Anthropic、Bedrock、Vertex）和 OpenAI GPT-5.5 現已在提供商設定中可用
-- **按模式的 MCP 允許清單** — 在模式設定中使用允許清單限制每個模式下活躍的 MCP 伺服器
-- **工作區 rootResolution 設定** — 新設定，用於控制 Zoo Code 在多根工作區中解析檔案路徑的方式
+- **規則管理介面** — 設定中新增的規則標籤頁，可直接在編輯器中建立、刪除和開啟全域及工作區 Zoo 規則
+- **完成變更審查** — 任務完成後，新的「查看新變更」和「還原變更」按鈕讓您檢視並復原最新提示帶來的變更
+- **寬鬆的 Diff 閾值** — 可設定的相似度閾值減少了套用 diff 時的「編輯失敗」錯誤，並提供新的診斷工具協助調整設定
 
 ## Zoo Code 能為您做什麼？
 

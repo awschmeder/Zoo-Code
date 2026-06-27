@@ -6,6 +6,7 @@ import { v7 as uuidv7 } from "uuid"
 import EventEmitter from "events"
 
 import { AskIgnoredError } from "./AskIgnoredError"
+import { RateLimitClock, createRateLimitClock } from "./RateLimitClock"
 
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
@@ -158,6 +159,8 @@ export interface TaskOptions extends CreateTaskOptions {
 	workspacePath?: string
 	/** Initial status for the task's history item (e.g., "active" for child tasks) */
 	initialStatus?: "active" | "delegated" | "completed"
+	rateLimitClock?: RateLimitClock
+	diffFuzzyThreshold?: number
 }
 
 export class Task extends EventEmitter<TaskEvents> implements TaskLike {
@@ -284,16 +287,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 	// API
 	apiConfiguration: ProviderSettings
 	api: ApiHandler
-	private static lastGlobalApiRequestTime?: number
+	private rateLimitClock: RateLimitClock
 	private autoApprovalHandler: AutoApprovalHandler
-
-	/**
-	 * Reset the global API request timestamp. This should only be used for testing.
-	 * @internal
-	 */
-	static resetGlobalApiRequestTime(): void {
-		Task.lastGlobalApiRequestTime = undefined
-	}
 
 	toolRepetitionDetector: ToolRepetitionDetector
 	rooIgnoreController?: RooIgnoreController
@@ -437,6 +432,8 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		initialTodos,
 		workspacePath,
 		initialStatus,
+		rateLimitClock,
+		diffFuzzyThreshold,
 	}: TaskOptions) {
 		super()
 
@@ -486,6 +483,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		this.apiConfiguration = apiConfiguration
 		this.api = buildApiHandler(this.apiConfiguration)
+		this.rateLimitClock = rateLimitClock ?? createRateLimitClock()
 		this.autoApprovalHandler = new AutoApprovalHandler()
 
 		this.consecutiveMistakeLimit = consecutiveMistakeLimit ?? DEFAULT_CONSECUTIVE_MISTAKE_LIMIT
@@ -533,7 +531,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		this.setupProviderProfileChangeListener(provider)
 
 		// Set up diff strategy
-		this.diffStrategy = new MultiSearchReplaceDiffStrategy()
+		this.diffStrategy = new MultiSearchReplaceDiffStrategy(diffFuzzyThreshold)
 
 		this.toolRepetitionDetector = new ToolRepetitionDetector(this.consecutiveMistakeLimit)
 
@@ -1240,7 +1238,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			})
 		}
 
-		let timeouts: NodeJS.Timeout[] = []
+		const timeouts: NodeJS.Timeout[] = []
 
 		if (approval.decision === "approve") {
 			this.approveAsk()
@@ -1559,6 +1557,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const metadata: ApiHandlerCreateMessageMetadata = {
 			mode,
 			taskId: this.taskId,
+			...(this.currentRequestAbortController?.signal
+				? {
+						abortSignal: this.currentRequestAbortController.signal,
+					}
+				: {}),
 			...(allTools.length > 0
 				? {
 						tools: allTools,
@@ -1955,7 +1958,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			// Make sure that the api conversation history can be resumed by the API,
 			// even if it goes out of sync with cline messages.
-			let existingApiConversationHistory: ApiMessage[] = await this.getSavedApiConversationHistory()
+			const existingApiConversationHistory: ApiMessage[] = await this.getSavedApiConversationHistory()
 
 			// Tool blocks are always preserved; native tool calling only.
 
@@ -2052,7 +2055,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				throw new Error("Unexpected: No existing API conversation history")
 			}
 
-			let newUserContent: Anthropic.Messages.ContentBlockParam[] = [...modifiedOldUserContent]
+			const newUserContent: Anthropic.Messages.ContentBlockParam[] = [...modifiedOldUserContent]
 
 			const agoText = ((): string => {
 				const timestamp = lastClineMessage?.ts ?? Date.now()
@@ -2455,12 +2458,12 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// This prevents the UI from showing an "API Request..." spinner while we are
 			// intentionally waiting due to the rate limit slider.
 			//
-			// NOTE: We also set Task.lastGlobalApiRequestTime here to reserve this slot
-			// before we build environment details (which can take time).
-			// This ensures subsequent requests (including subtasks) still honour the
+			// NOTE: We also record the request time here to reserve this slot before
+			// we build environment details (which can take time). This ensures
+			// subsequent requests (including subtasks) still honour the
 			// provider rate-limit window.
 			await this.maybeWaitForProviderRateLimit(currentItem.retryAttempt ?? 0)
-			Task.lastGlobalApiRequestTime = performance.now()
+			this.rateLimitClock.recordRequest()
 
 			await this.say(
 				"api_req_started",
@@ -2522,7 +2525,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 			// Add environment details as its own text block, separate from tool
 			// results.
-			let finalUserContent = [...contentWithoutEnvDetails, { type: "text" as const, text: environmentDetails }]
+			const finalUserContent = [...contentWithoutEnvDetails, { type: "text" as const, text: environmentDetails }]
 			// Only add user message to conversation history if:
 			// 1. This is the first attempt (retryAttempt === 0), AND
 			// 2. The original userContent was not empty (empty signals delegation resume where
@@ -2668,7 +2671,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				const stream = this.attemptApiRequest(currentItem.retryAttempt ?? 0, { skipProviderRateLimit: true })
 				let assistantMessage = ""
 				let reasoningMessage = ""
-				let pendingGroundingSources: GroundingSource[] = []
+				const pendingGroundingSources: GroundingSource[] = []
 				this.isStreaming = true
 
 				try {
@@ -2687,7 +2690,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 								} else {
 									signal.addEventListener("abort", () => {
 										reject(new Error("Request cancelled by user"))
-									})
+									}, { once: true })
 								}
 							})
 							return await Promise.race([nextPromise, abortPromise])
@@ -3538,7 +3541,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					// apiConversationHistory at line 1876. Since the assistant failed to respond,
 					// we need to remove that message before retrying to avoid having two consecutive
 					// user messages (which would cause tool_result validation errors).
-					let state = await this.providerRef.deref()?.getState()
+					const state = await this.providerRef.deref()?.getState()
 					if (this.apiConversationHistory.length > 0) {
 						const lastMessage = this.apiConversationHistory[this.apiConversationHistory.length - 1]
 						if (lastMessage.role === "user") {
@@ -3767,6 +3770,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const metadata: ApiHandlerCreateMessageMetadata = {
 			mode,
 			taskId: this.taskId,
+			...(this.currentRequestAbortController?.signal
+				? {
+						abortSignal: this.currentRequestAbortController.signal,
+					}
+				: {}),
 			...(allTools.length > 0
 				? {
 						tools: allTools,
@@ -3854,12 +3862,13 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		const rateLimitSeconds =
 			state?.apiConfiguration?.rateLimitSeconds ?? this.apiConfiguration?.rateLimitSeconds ?? 0
 
-		if (rateLimitSeconds <= 0 || !Task.lastGlobalApiRequestTime) {
+		const lastRequestTime = this.rateLimitClock.getLastRequestTime()
+		if (rateLimitSeconds <= 0 || !lastRequestTime) {
 			return
 		}
 
 		const now = performance.now()
-		const timeSinceLastRequest = now - Task.lastGlobalApiRequestTime
+		const timeSinceLastRequest = now - lastRequestTime
 		const rateLimitDelay = Math.ceil(
 			Math.min(rateLimitSeconds, Math.max(0, rateLimitSeconds * 1000 - timeSinceLastRequest) / 1000),
 		)
@@ -3907,7 +3916,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		// timestamp earlier to include the environment details build. We still set it
 		// here for direct callers (tests) and for the case where we didn't rate-limit
 		// in the caller.
-		Task.lastGlobalApiRequestTime = performance.now()
+		this.rateLimitClock.recordRequest()
 
 		const systemPrompt = await this.getSystemPrompt()
 		const { contextTokens } = this.getTokenUsage()
@@ -3982,6 +3991,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			const contextMgmtMetadata: ApiHandlerCreateMessageMetadata = {
 				mode,
 				taskId: this.taskId,
+				...(this.currentRequestAbortController?.signal
+					? {
+							abortSignal: this.currentRequestAbortController.signal,
+						}
+					: {}),
 				...(contextMgmtTools.length > 0
 					? {
 							tools: contextMgmtTools,
@@ -4144,10 +4158,15 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 
 		const shouldIncludeTools = allTools.length > 0
 
+		// Create an AbortController to allow cancelling the request mid-stream
+		this.currentRequestAbortController = new AbortController()
+		const abortSignal = this.currentRequestAbortController.signal
+
 		const metadata: ApiHandlerCreateMessageMetadata = {
 			mode: mode,
 			taskId: this.taskId,
 			suppressPreviousResponseId: this.skipPrevResponseIdOnce,
+			abortSignal,
 			// Include tools whenever they are present.
 			...(shouldIncludeTools
 				? {
@@ -4160,10 +4179,6 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 					}
 				: {}),
 		}
-
-		// Create an AbortController to allow cancelling the request mid-stream
-		this.currentRequestAbortController = new AbortController()
-		const abortSignal = this.currentRequestAbortController.signal
 		// Reset the flag after using it
 		this.skipPrevResponseIdOnce = false
 
@@ -4179,7 +4194,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 		abortSignal.addEventListener("abort", () => {
 			console.log(`[Task#${this.taskId}.${this.instanceId}] AbortSignal triggered for current request`)
 			this.currentRequestAbortController = undefined
-		})
+		}, { once: true })
 
 		try {
 			// Awaiting first chunk to see if it will throw an error.
@@ -4193,7 +4208,7 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 				} else {
 					abortSignal.addEventListener("abort", () => {
 						reject(new Error("Request cancelled by user"))
-					})
+					}, { once: true })
 				}
 			})
 
@@ -4202,8 +4217,11 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			this.isWaitingForFirstChunk = false
 		} catch (error) {
 			this.isWaitingForFirstChunk = false
-			this.currentRequestAbortController = undefined
 			const isContextWindowExceededError = checkContextWindowExceededError(error)
+
+			if (!isContextWindowExceededError) {
+				this.currentRequestAbortController = undefined
+			}
 
 			// If it's a context window error and we haven't exceeded max retries for this error type
 			if (isContextWindowExceededError && retryAttempt < MAX_CONTEXT_WINDOW_RETRIES) {
@@ -4282,8 +4300,9 @@ export class Task extends EventEmitter<TaskEvents> implements TaskLike {
 			// Respect provider rate limit window
 			let rateLimitDelay = 0
 			const rateLimit = (state?.apiConfiguration ?? this.apiConfiguration)?.rateLimitSeconds || 0
-			if (Task.lastGlobalApiRequestTime && rateLimit > 0) {
-				const elapsed = performance.now() - Task.lastGlobalApiRequestTime
+			const lastRequestTime = this.rateLimitClock.getLastRequestTime()
+			if (lastRequestTime && rateLimit > 0) {
+				const elapsed = performance.now() - lastRequestTime
 				rateLimitDelay = Math.ceil(Math.min(rateLimit, Math.max(0, rateLimit * 1000 - elapsed) / 1000))
 			}
 

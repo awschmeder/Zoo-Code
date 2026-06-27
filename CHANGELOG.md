@@ -1,5 +1,51 @@
 # Zoo Code Changelog
 
+## [3.64.0]
+
+### Minor Changes
+
+- Add Rules Management UI — new Rules tab in Settings to create, delete, and open global and workspace Zoo rules (#660 by @ivanarifin, PR #657 by @ivanarifin)
+- Add completion change review actions — "See New Changes" and "Restore Changes" buttons after task completion let you inspect and undo changes from the latest prompt (#661 by @ivanarifin, PR #633 by @ivanarifin)
+- Add kimi-k2p7-code model on Fireworks provider (PR #599 by @p12tic)
+- feat: add abort signal core plumbing — threads AbortSignal through the API metadata layer for future provider-level cancellation (#434 by @easonLiangWorldedtech, PR #674 by @easonLiangWorldedtech)
+- feat: add TaskSemaphore utility for parallel task coordination (#362 by @edelauna, PR #675 by @edelauna)
+- feat(experiments): register PARALLEL_TOOL_EXECUTION feature flag (internal-only) (#363 by @edelauna, PR #678 by @edelauna)
+- Add Roo Code history import to the About page (PR #141 by @roomote)
+- Fix: configurable relaxed diff thresholds and diagnostics reduce "edit unsuccessful" errors (#452 by @DannyVarodBlueVine, PR #470 by @nigeldelviero)
+- Fix: auto-closing edited files is now opt-in — the setting defaults to off (#719 by @edelauna, PR #720 by @edelauna)
+- Fix(diff-view): make auto-closing edited files opt-in, fixing setting that could not be unchecked (#667 by @navedmerchant, PR #668 by @navedmerchant)
+- Fix(delegation): serialize delegateParentAndOpenChild with atomicReadAndUpdate to prevent race conditions (#364 by @edelauna, #365 by @edelauna, PR #691 by @edelauna)
+- Fix(ask_followup_question): report non-array follow_up suggestions as a type error (#511 by @nh2, PR #662 by @nh2)
+- Fix: parse Gemma 4 `<thought>` reasoning tags alongside `<think>` (#323 by @sagidM, PR #324 by @sagidM)
+- docs(prompt): enhance apply_diff tool instructions to improve Gemini model success rate (#611 by @awschmeder, PR #619 by @awschmeder)
+- chore(deps): update undici to v6.27.0 [security] (PR #659 by @renovate)
+- chore(deps): update @types/node, @vscode/test-cli, execa, axios (PR #669, #670, #671, #673 by @renovate)
+- test(mcp): fix McpHub Windows command wrapping test ordering (PR #632 by @HappyLiang12)
+- fix(McpHub): resolve flaky McpHub.spec.ts tests after Vitest 4 upgrade (PR #666 by @edelauna)
+
+## [3.62.0]
+
+### Minor Changes
+
+- Add GLM-5.2 support — the latest GLM model is now available in your provider settings (#597 by @percy4, PR #608 by @MobCode100)
+- Add OpenCode-Go native model parameters, Anthropic-format routing, and context-token fix for more reliable responses (#646 by @ykoneee, PR #652 by @navedmerchant)
+- Add tool-writer mode to the Marketplace — a new specialized mode for writing and maintaining tool definitions (#603 by @RayCarro, PR #604 by @RayCarro)
+- Add LiteLLM support for forwarding taskId as X-Zoo-Session-ID request header for better request tracing (#590 by @awschmeder, PR #591 by @awschmeder)
+- Fix: Apply apiRequestTimeout consistently across all providers (#565 by @daewoongoh, PR #567 by @daewoongoh)
+- Fix: Restore diff view scroll position and fix tab handling on save/deny (#586 by @awschmeder, PR #589 by @awschmeder)
+- Fix: Deliver terminal completion signal when end event wins the race against setActiveStream (#489 by @drzraf, #622 by @onlineapps-cloud, PR #645 by @edelauna)
+- Fix: Fetch OpenCode-Go models unconditionally — the /models endpoint is public (PR #437 by @proyectoauraorg)
+- Refactor: Extract RateLimitClock from Task static state for cleaner rate-limit handling (#361 by @edelauna, PR #628 by @edelauna)
+- Refactor: Use extractReasoningFromDelta helper for reasoning extraction across providers (PR #588 by @daewoongoh)
+- Fix: Automate PR review-state and stale labels in GitHub Actions (PR #636 by @edelauna)
+- Re-enable the prefer-const ESLint rule (PR #250 by @0xMink)
+- Add stale PR workflows and auto-closure policy (PR #631 by @edelauna)
+- Update dependency vitest to v4 [security] (PR #443 by @app/renovate)
+- Update dependency shell-quote to v1.8.4 [security] (PR #554 by @app/renovate)
+- Update dependency esbuild to v0.28.1 [security] (PR #595 by @app/renovate)
+- Update dependency vite to v8.0.16 [security] (PR #642 by @app/renovate)
+- Update GitHub Actions (PR #521 by @app/renovate)
+
 ## [3.60.0]
 
 ### Minor Changes

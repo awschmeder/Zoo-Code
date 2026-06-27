@@ -30,11 +30,11 @@
 
 Bạn có thể xem hướng dẫn nhanh để chuyển từ Roo Code sang Zoo Code trong [hướng dẫn chuyển đổi Roo→Zoo](https://docs.zoocode.dev/roo-to-zoo-migration). Chúng tôi muốn hỗ trợ người dùng nhiều nhất có thể trong quá trình chuyển đổi, và đó chính là lý do chúng tôi có [Reddit](https://www.reddit.com/r/ZooCode) và [Discord](https://discord.gg/VxfP4Vx3gX). Nếu bạn gặp vấn đề hoặc có câu hỏi, cứ vào hỏi nhé.
 
-## Điểm mới trong v3.60.0
+## Điểm mới trong v3.64.0
 
-- **Fable 5 + GPT-5.5** — Claude Fable 5 (Anthropic, Bedrock, Vertex) và OpenAI GPT-5.5 hiện có trong cài đặt nhà cung cấp
-- **Allowlist MCP theo chế độ** — hạn chế máy chủ MCP nào hoạt động cho mỗi chế độ bằng allowlist trong cấu hình chế độ
-- **Cài đặt rootResolution cho không gian làm việc** — cài đặt mới kiểm soát cách phân giải đường dẫn tệp trong không gian làm việc nhiều gốc
+- **Giao diện Quản lý Quy tắc** — tab Quy tắc mới trong Cài đặt cho phép bạn tạo, xóa và mở các quy tắc Zoo toàn cục và không gian làm việc trực tiếp từ trình soạn thảo
+- **Xem xét Thay đổi Hoàn thành** — sau khi nhiệm vụ hoàn thành, các nút mới "Xem thay đổi mới" và "Khôi phục thay đổi" cho phép bạn kiểm tra và hoàn tác các thay đổi từ lệnh nhắc cuối cùng
+- **Ngưỡng Diff được nới lỏng** — các ngưỡng tương đồng có thể cấu hình giúp giảm lỗi "chỉnh sửa không thành công" khi áp dụng diff, kèm theo chẩn đoán mới để tinh chỉnh cài đặt
 
 ## Zoo Code có thể làm gì cho BẠN?
 

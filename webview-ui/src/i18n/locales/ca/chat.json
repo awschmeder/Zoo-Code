@@ -40,6 +40,14 @@
 		"title": "Començar una nova tasca",
 		"tooltip": "Comença una nova tasca"
 	},
+	"seeNewChanges": {
+		"title": "Veure els canvis nous",
+		"tooltip": "Mostra els canvis fets des del teu últim prompt"
+	},
+	"restoreChanges": {
+		"title": "Restaurar canvis",
+		"tooltip": "Restaura els fitxers i l'estat de la tasca al teu últim prompt"
+	},
 	"proceedAnyways": {
 		"title": "Continuar de totes maneres",
 		"tooltip": "Continua mentre s'executa l'ordre"
@@ -333,9 +341,9 @@
 		"support": "Dona suport a Zoo Code fent-nos una estrella a <githubLink>GitHub</githubLink>.",
 		"release": {
 			"heading": "Novetats:",
-			"highlight1": "Nous models d'IA — Claude Fable 5 a tots els proveïdors d'Anthropic i OpenAI GPT-5.5 ara estan disponibles a la configuració del proveïdor.",
-			"highlight2": "Llistes d'accés MCP per mode — restringeix quins servidors MCP estan actius per cada mode usant una nova llista d'accés a la configuració del mode.",
-			"highlight3": "Configuració rootResolution per a l'espai de treball — un nou ajust que controla com Zoo Code resol les rutes d'arxiu entre els arrels dels espais de treball multi-arrel."
+			"highlight1": "Interfície de gestió de regles — una nova pestanya Regles a la Configuració us permet crear, suprimir i obrir regles de Zoo globals i de l'espai de treball directament des de l'editor.",
+			"highlight2": "Revisió de canvis de finalització — quan una tasca es completa, els nous botons \"Veure canvis nous\" i \"Restaurar canvis\" us permeten inspeccionar i desfer els canvis de l'últim missatge.",
+			"highlight3": "Llindars de diff relaxats — llindars de similitud configurables redueixen els errors \"edició fallida\" en aplicar diffs, amb nous diagnòstics per ajustar la configuració."
 		},
 		"cloudAgents": {
 			"heading": "Novetats al núvol:",

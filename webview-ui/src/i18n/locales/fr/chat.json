@@ -40,6 +40,14 @@
 		"title": "Commencer une nouvelle tâche",
 		"tooltip": "Démarrer une nouvelle tâche"
 	},
+	"seeNewChanges": {
+		"title": "Voir les nouveaux changements",
+		"tooltip": "Affiche les changements effectués depuis ton dernier prompt"
+	},
+	"restoreChanges": {
+		"title": "Restaurer les changements",
+		"tooltip": "Restaure les fichiers et l'état de la tâche à ton dernier prompt"
+	},
 	"proceedAnyways": {
 		"title": "Continuer quand même",
 		"tooltip": "Continuer pendant l'exécution de la commande"
@@ -333,9 +341,9 @@
 		"support": "Soutiens Zoo Code en nous donnant une étoile sur <githubLink>GitHub</githubLink>.",
 		"release": {
 			"heading": "Nouveautés :",
-			"highlight1": "Nouveaux modèles d'IA — Claude Fable 5 pour tous les fournisseurs Anthropic et OpenAI GPT-5.5 sont désormais disponibles dans les paramètres du fournisseur.",
-			"highlight2": "Listes d'autorisation MCP par mode — restreins les serveurs MCP actifs par mode grâce à une nouvelle liste d'autorisation dans la configuration du mode.",
-			"highlight3": "Paramètre rootResolution pour l'espace de travail — un nouveau réglage qui contrôle la résolution des chemins de fichiers dans les espaces de travail multi-racines."
+			"highlight1": "Interface de gestion des règles — un nouvel onglet Règles dans les Paramètres permet de créer, supprimer et ouvrir des règles Zoo globales et d'espace de travail directement depuis l'éditeur.",
+			"highlight2": "Révision des changements de finalisation — après l'achèvement d'une tâche, les nouveaux boutons \"Voir les nouveaux changements\" et \"Restaurer les changements\" permettent d'inspecter et d'annuler les modifications de la dernière invite.",
+			"highlight3": "Seuils de diff assouplis — des seuils de similarité configurables réduisent les erreurs \"modification échouée\" lors de l'application de diffs, avec de nouveaux diagnostics pour régler les paramètres."
 		},
 		"cloudAgents": {
 			"heading": "Nouveautés dans le Cloud :",

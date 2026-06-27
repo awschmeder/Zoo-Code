@@ -30,11 +30,11 @@
 
 Roo Code से Zoo Code में आने के लिए एक quick guide तुम्हें [Roo→Zoo migration guide](https://docs.zoocode.dev/roo-to-zoo-migration) में मिल जाएगी। We plan to help users as much as possible during the transition, और उसी support के लिए हमारा [Reddit](https://www.reddit.com/r/ZooCode) और [Discord](https://discord.gg/VxfP4Vx3gX) है। अगर तुम्हें कोई problem हो या कोई question हो, आकर पूछो।
 
-## v3.60.0 में नया क्या है
+## v3.64.0 में नया क्या है
 
-- **Fable 5 + GPT-5.5** — Claude Fable 5 (Anthropic, Bedrock, Vertex) और OpenAI GPT-5.5 अब provider settings में उपलब्ध हैं
-- **प्रति-मोड MCP allowlists** — mode configuration में allowlist का उपयोग करके प्रत्येक mode के लिए सक्रिय MCP servers को सीमित करें
-- **Workspace rootResolution सेटिंग** — multi-root workspaces में फ़ाइल पथ resolution को नियंत्रित करने के लिए नई सेटिंग
+- **नियम प्रबंधन UI** — सेटिंग्स में एक नया नियम टैब आपको सीधे संपादक से वैश्विक और कार्यक्षेत्र Zoo नियम बनाने, हटाने और खोलने देता है
+- **पूर्णता परिवर्तन समीक्षा** — जब कोई कार्य पूरा होता है, नए "नए बदलाव देखें" और "बदलाव पुनर्स्थापित करें" बटन आपको अंतिम संकेत के बदलावों की जांच करने और उन्हें पूर्ववत करने देते हैं
+- **शिथिल Diff सीमाएँ** — कॉन्फ़िगर करने योग्य समानता सीमाएँ diff लागू करते समय "संपादन असफल" त्रुटियों को कम करती हैं, सेटिंग्स को ट्यून करने में मदद के लिए नए निदान के साथ
 
 ## Zoo Code आपके लिए क्या कर सकता है?
 
