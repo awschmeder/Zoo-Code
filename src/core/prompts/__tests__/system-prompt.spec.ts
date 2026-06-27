@@ -548,17 +548,17 @@ describe("SYSTEM_PROMPT", () => {
 			settings, // settings
 		)
 
-		// Should contain TOOL USE section with native note
-		expect(prompt).toContain("TOOL USE")
-		expect(prompt).toContain("provider-native tool-calling mechanism")
-		expect(prompt).toContain("Do not include XML markup or examples")
+		// Should contain TOOL USE PROTOCOL section with built-in mechanism note
+		expect(prompt).toContain("TOOL USE PROTOCOL")
+		expect(prompt).toContain("built-in tool-calling mechanism")
+		expect(prompt).toContain("never embed markup")
 
 		// Should NOT contain XML-style tags or examples
 		expect(prompt).not.toContain("<actual_tool_name>")
 		expect(prompt).not.toContain("</actual_tool_name>")
 
-		// Should contain Tool Use Guidelines section
-		expect(prompt).toContain("Tool Use Guidelines")
+		// Should contain Tool Selection Guidelines section
+		expect(prompt).toContain("Tool Selection Guidelines")
 
 		// Should NOT contain a tool catalog / XML examples
 		expect(prompt).not.toContain("# Tools")

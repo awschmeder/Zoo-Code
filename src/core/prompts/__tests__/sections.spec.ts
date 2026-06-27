@@ -1,6 +1,8 @@
 import { addCustomInstructions } from "../sections/custom-instructions"
 import { getCapabilitiesSection } from "../sections/capabilities"
 import { getRulesSection, getCommandChainOperator } from "../sections/rules"
+import { getSharedToolUseSection } from "../sections/tool-use"
+import { getToolUseGuidelinesSection } from "../sections/tool-use-guidelines"
 import { McpHub } from "../../../services/mcp/McpHub"
 import * as shellUtils from "../../../utils/shell"
 

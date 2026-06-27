@@ -1,7 +1,11 @@
 export function getSharedToolUseSection(): string {
 	return `====
 
-TOOL USE
+TOOL USE PROTOCOL
 
-You have access to a set of tools that are executed upon the user's approval. Use the provider-native tool-calling mechanism. Do not include XML markup or examples. You must call at least one tool per assistant response. Prefer calling as many tools as are reasonably needed in a single response to reduce back-and-forth and complete tasks faster.`
+You have access to a set of tools that are executed upon the user's approval.
+
+- Emit tool calls only through your built-in tool-calling mechanism -- do not write tool calls or tool-call wrappers as text in your reply.
+- Tool-call arguments must be values conforming to each tool's parameter schema (strings, numbers, booleans, arrays, objects); never embed markup such as \`<parameter ...>\` or any XML/pseudo-tag inside an argument value.
+- Every response MUST contain at least one tool call -- including confirmations, acknowledgments, and answers to conversational questions. A response with no tool call is a protocol error.`
 }
