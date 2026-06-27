@@ -725,6 +725,231 @@ describe("LiteLLMHandler", () => {
 				expect(assistantMessage.tool_calls[0].provider_specific_fields).toBeUndefined()
 			})
 		})
+
+		describe("thought signature capture and replay", () => {
+			const dummySignature = Buffer.from("skip_thought_signature_validator").toString("base64")
+
+			const makeStream = (chunks: any[]) => ({
+				async *[Symbol.asyncIterator]() {
+					for (const chunk of chunks) {
+						yield chunk
+					}
+				},
+			})
+
+			it("captures the last non-empty thought signature from the stream", async () => {
+				const optionsWithGemini: ApiHandlerOptions = { ...mockOptions, litellmModelId: "gemini-3-pro" }
+				handler = new LiteLLMHandler(optionsWithGemini)
+				vi.spyOn(handler as any, "fetchModel").mockResolvedValue({
+					id: "gemini-3-pro",
+					info: { ...litellmDefaultModelInfo, maxTokens: 8192 },
+				})
+
+				mockCreate.mockReturnValue({
+					withResponse: vi.fn().mockResolvedValue({
+						data: makeStream([
+							{
+								choices: [
+									{
+										delta: {
+											reasoning_content: "thinking...",
+											// Empty entries should be ignored; last non-empty wins.
+											provider_specific_fields: { thought_signatures: ["", "sig-old"] },
+										},
+									},
+								],
+							},
+							{
+								choices: [
+									{
+										delta: {
+											content: "answer",
+											provider_specific_fields: { thought_signatures: ["sig-abc", ""] },
+										},
+									},
+								],
+								usage: { prompt_tokens: 10, completion_tokens: 5 },
+							},
+						]),
+					}),
+				})
+
+				const generator = handler.createMessage("system", [{ role: "user", content: "Hi" }])
+				for await (const _chunk of generator) {
+					// consume
+				}
+
+				expect(handler.getThoughtSignature()).toBe("sig-abc")
+			})
+
+			it("resets the captured signature on a following createMessage with no signature", async () => {
+				const optionsWithGemini: ApiHandlerOptions = { ...mockOptions, litellmModelId: "gemini-3-pro" }
+				handler = new LiteLLMHandler(optionsWithGemini)
+				vi.spyOn(handler as any, "fetchModel").mockResolvedValue({
+					id: "gemini-3-pro",
+					info: { ...litellmDefaultModelInfo, maxTokens: 8192 },
+				})
+
+				mockCreate.mockReturnValueOnce({
+					withResponse: vi.fn().mockResolvedValue({
+						data: makeStream([
+							{
+								choices: [
+									{
+										delta: {
+											content: "answer",
+											provider_specific_fields: { thought_signatures: ["sig-abc"] },
+										},
+									},
+								],
+								usage: { prompt_tokens: 10, completion_tokens: 5 },
+							},
+						]),
+					}),
+				})
+
+				for await (const _chunk of handler.createMessage("system", [{ role: "user", content: "Hi" }])) {
+					// consume
+				}
+				expect(handler.getThoughtSignature()).toBe("sig-abc")
+
+				mockCreate.mockReturnValueOnce({
+					withResponse: vi.fn().mockResolvedValue({
+						data: makeStream([
+							{
+								choices: [{ delta: { content: "answer 2" } }],
+								usage: { prompt_tokens: 10, completion_tokens: 5 },
+							},
+						]),
+					}),
+				})
+
+				for await (const _chunk of handler.createMessage("system", [{ role: "user", content: "Again" }])) {
+					// consume
+				}
+				expect(handler.getThoughtSignature()).toBeUndefined()
+			})
+
+			it("replays the real signature into tool_calls when present in history", async () => {
+				const optionsWithGemini: ApiHandlerOptions = { ...mockOptions, litellmModelId: "gemini-3-pro" }
+				handler = new LiteLLMHandler(optionsWithGemini)
+				vi.spyOn(handler as any, "fetchModel").mockResolvedValue({
+					id: "gemini-3-pro",
+					info: { ...litellmDefaultModelInfo, maxTokens: 8192 },
+				})
+
+				const messages: Anthropic.Messages.MessageParam[] = [
+					{ role: "user", content: "Hello" },
+					{
+						role: "assistant",
+						content: [
+							{ type: "text", text: "Reading file." },
+							{ type: "tool_use", id: "toolu_1", name: "read_file", input: { path: "a.txt" } },
+							// Persisted by the generic history pipeline.
+							{ type: "thoughtSignature", thoughtSignature: "real-sig-1" } as any,
+						],
+					},
+					{ role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "data" }] },
+					{ role: "user", content: "Thanks!" },
+				]
+
+				mockCreate.mockReturnValue({
+					withResponse: vi.fn().mockResolvedValue({
+						data: makeStream([
+							{
+								choices: [{ delta: { content: "ok" } }],
+								usage: { prompt_tokens: 10, completion_tokens: 5 },
+							},
+						]),
+					}),
+				})
+
+				for await (const _chunk of handler.createMessage("system", messages, { tools: [] } as any)) {
+					// consume
+				}
+
+				const createCall = mockCreate.mock.calls[0][0]
+				const assistantMessage = createCall.messages.find(
+					(msg: any) => msg.role === "assistant" && msg.tool_calls && msg.tool_calls.length > 0,
+				)
+				expect(assistantMessage.tool_calls[0].provider_specific_fields.thought_signature).toBe("real-sig-1")
+			})
+
+			it("falls back to the dummy signature when no real signature is in history", async () => {
+				const optionsWithGemini: ApiHandlerOptions = { ...mockOptions, litellmModelId: "gemini-3-pro" }
+				handler = new LiteLLMHandler(optionsWithGemini)
+				vi.spyOn(handler as any, "fetchModel").mockResolvedValue({
+					id: "gemini-3-pro",
+					info: { ...litellmDefaultModelInfo, maxTokens: 8192 },
+				})
+
+				const messages: Anthropic.Messages.MessageParam[] = [
+					{ role: "user", content: "Hello" },
+					{
+						role: "assistant",
+						content: [
+							{ type: "text", text: "Reading file." },
+							{ type: "tool_use", id: "toolu_1", name: "read_file", input: { path: "a.txt" } },
+						],
+					},
+					{ role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "data" }] },
+					{ role: "user", content: "Thanks!" },
+				]
+
+				mockCreate.mockReturnValue({
+					withResponse: vi.fn().mockResolvedValue({
+						data: makeStream([
+							{
+								choices: [{ delta: { content: "ok" } }],
+								usage: { prompt_tokens: 10, completion_tokens: 5 },
+							},
+						]),
+					}),
+				})
+
+				for await (const _chunk of handler.createMessage("system", messages, { tools: [] } as any)) {
+					// consume
+				}
+
+				const createCall = mockCreate.mock.calls[0][0]
+				const assistantMessage = createCall.messages.find(
+					(msg: any) => msg.role === "assistant" && msg.tool_calls && msg.tool_calls.length > 0,
+				)
+				expect(assistantMessage.tool_calls[0].provider_specific_fields.thought_signature).toBe(dummySignature)
+			})
+
+			it("replays a real signature at the message level for a tool-free assistant turn", () => {
+				const handler = new LiteLLMHandler(mockOptions)
+				const injectThoughtSignature = (handler as any).injectThoughtSignatureForGemini.bind(handler)
+
+				const openAiMessages = [
+					{ role: "user", content: "Hello" },
+					{ role: "assistant", content: "A tool-free reasoning answer." },
+				]
+				// Assistant ordinal 0 -> real signature.
+				const realMap = new Map<number, string>([[0, "real-sig-msg"]])
+
+				const result = injectThoughtSignature(openAiMessages, realMap)
+
+				expect(result[1].provider_specific_fields.thought_signatures).toEqual(["real-sig-msg"])
+				// No dummy fabricated for tool-free turns without a real signature.
+				expect(result[1].tool_calls).toBeUndefined()
+			})
+
+			it("does not fabricate a message-level signature for a tool-free turn without a real signature", () => {
+				const handler = new LiteLLMHandler(mockOptions)
+				const injectThoughtSignature = (handler as any).injectThoughtSignatureForGemini.bind(handler)
+
+				const openAiMessages = [
+					{ role: "user", content: "Hello" },
+					{ role: "assistant", content: "A tool-free reasoning answer." },
+				]
+
+				const result = injectThoughtSignature(openAiMessages)
+
+				expect(result[1].provider_specific_fields).toBeUndefined()
+			})
+		})
 	})
 
 	describe("reasoning field handling", () => {
