@@ -2,6 +2,8 @@ import type OpenAI from "openai"
 
 const EXECUTE_COMMAND_DESCRIPTION = `Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish any step in the user's task. You must tailor your command to the user's system and provide a clear explanation of what the command does. For command chaining, use the appropriate chaining syntax for the user's shell. Prefer to execute complex CLI commands over creating executable scripts, as they are more flexible and easier to run. Prefer relative commands and paths that avoid location sensitivity for terminal consistency.
 
+Large or background output: when a command produces more output than fits in the result, the full output is saved to disk and the result ends with a sentinel like "[OUTPUT TRUNCATED - Full output saved to artifact: cmd-XXXX.txt]". When you see that sentinel (or when a command continues in the background after a timeout), use read_command_output with the given artifact_id to read or search the remaining output -- do not re-run the command to see what was cut off.
+
 Parameters:
 - command: (required) The CLI command to execute. This should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.
 - cwd: (optional) The working directory to execute the command in

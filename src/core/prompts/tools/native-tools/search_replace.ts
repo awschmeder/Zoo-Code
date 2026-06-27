@@ -17,7 +17,11 @@ CRITICAL REQUIREMENTS FOR USING THIS TOOL:
 
 3. VERIFICATION: Before using this tool:
    - If multiple instances exist, gather enough context to uniquely identify each one
-   - Plan separate tool calls for each instance`
+   - Plan separate tool calls for each instance
+
+OUTCOMES ON FAILURE:
+- Zero matches: if old_string is not found (often due to a whitespace, indentation, or context mismatch), the tool makes no change and reports the failure. Re-read the file to copy the exact current text rather than retrying the same string.
+- Multiple matches: if old_string matches more than one location, the tool does not guess -- it reports the ambiguity and makes no change. Add more surrounding context so old_string identifies exactly one instance.`
 
 const search_replace = {
 	type: "function",

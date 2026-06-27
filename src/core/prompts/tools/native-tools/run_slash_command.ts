@@ -1,6 +1,8 @@
 import type OpenAI from "openai"
 
-const RUN_SLASH_COMMAND_DESCRIPTION = `Execute a slash command to get specific instructions or content. Slash commands are predefined templates that provide detailed guidance for common tasks.`
+const RUN_SLASH_COMMAND_DESCRIPTION = `Execute a slash command to get specific instructions or content. Slash commands are predefined templates that provide detailed guidance for common tasks.
+
+When to use this vs skill: both load instruction templates. Use run_slash_command for a named slash command; if no slash command matches the name, it falls back to resolving a skill of the same name. When you specifically intend to load a skill, prefer the skill tool directly.`
 
 const COMMAND_PARAMETER_DESCRIPTION = `Name of the slash command to run (e.g., init, test, deploy)`
 

@@ -2,9 +2,9 @@ import type OpenAI from "openai"
 
 const WRITE_TO_FILE_DESCRIPTION = `Request to write content to a file. This tool is primarily used for creating new files or for scenarios where a complete rewrite of an existing file is intentionally required. If the file exists, it will be overwritten. If it doesn't exist, it will be created. This tool will automatically create any directories needed to write the file.
 
-**Important:** You should prefer using other editing tools over write_to_file when making changes to existing files, since write_to_file is slower and cannot handle large files. Use write_to_file primarily for new file creation.
+**Important:** This tool rewrites the entire file from the content you provide. For edits to an existing large file, prefer a surgical edit tool (e.g. apply_diff) instead -- it is faster and avoids re-emitting the whole file. Use write_to_file primarily for new file creation or an intentional full rewrite.
 
-When using this tool, use it directly with the desired content. You do not need to display the content before using the tool. ALWAYS provide the COMPLETE file content in your response. This is NON-NEGOTIABLE. Partial updates or placeholders like '// rest of code unchanged' are STRICTLY FORBIDDEN. Failure to do so will result in incomplete or broken code.
+When using this tool, use it directly with the desired content. You do not need to display the content before using the tool. Provide the COMPLETE intended file content: partial updates or placeholders like '// rest of code unchanged' produce broken files and must not be used. Because the tool writes whatever content you supply, very large rewrites risk hitting the response output budget; when a file is too large to emit in full reliably, prefer a surgical edit tool instead.
 
 When creating a new project, organize all new files within a dedicated project directory unless the user specifies otherwise. Structure the project logically, adhering to best practices for the specific type of project being created.
 

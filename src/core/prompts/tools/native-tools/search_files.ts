@@ -2,11 +2,15 @@ import type OpenAI from "openai"
 
 const SEARCH_FILES_DESCRIPTION = `Request to perform a regex search across files in a specified directory, providing context-rich results. This tool searches for patterns or specific content across multiple files, displaying each match with encapsulating context.
 
+When to use this tool: prefer search_files when you already know an exact symbol, string literal, or regex pattern to match. When exploring an unfamiliar area by concept (you do not yet know the exact text), prefer codebase_search first, then use search_files to pin down specific matches. To enumerate files or inspect directory structure rather than match content, use list_files.
+
 Craft your regex patterns carefully to balance specificity and flexibility. Use this tool to find code patterns, TODO comments, function definitions, or any text-based information across the project. The results include surrounding context, so analyze the surrounding code to better understand the matches. Leverage this tool in combination with other tools for more comprehensive analysis.
+
+Regex dialect: patterns use Rust regex syntax, which does NOT support lookarounds ((?=...), (?!...), (?<=...), (?<!...)) or backreferences (\\1). Matching is case-sensitive by default; prepend the (?i) flag for case-insensitive matching (e.g. (?i)todo matches TODO, Todo, and todo).
 
 Parameters:
 - path: (required) The path of the directory to search in (relative to the current workspace directory). This directory will be recursively searched.
-- regex: (required) The regular expression pattern to search for. Uses Rust regex syntax.
+- regex: (required) The regular expression pattern to search for. Uses Rust regex syntax (no lookarounds or backreferences; use (?i) for case-insensitive matching).
 - file_pattern: (optional) Glob pattern to filter files (e.g., '*.ts' for TypeScript files). If not provided, it will search all files (*).
 
 Example: Searching for all .ts files in the current directory

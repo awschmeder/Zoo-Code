@@ -1,6 +1,6 @@
 import type OpenAI from "openai"
 
-const UPDATE_TODO_LIST_DESCRIPTION = `Replace the entire TODO list with an updated checklist reflecting the current state. Always provide the full list; the system will overwrite the previous one. This tool is designed for step-by-step task tracking, allowing you to confirm completion of each step before updating, update multiple task statuses at once (e.g., mark one as completed and start the next), and dynamically add new todos discovered during long or complex tasks.
+const UPDATE_TODO_LIST_DESCRIPTION = `Replace the entire TODO list with an updated checklist reflecting the current state. This is a full overwrite: the list you provide entirely replaces the previous one, so any item you omit is dropped. Because of this, you MUST carry forward every still-relevant pending ([ ]) and in-progress ([-]) item in each update -- only completed items change to [x], and items are removed only when they are genuinely no longer applicable. This tool is designed for step-by-step task tracking, allowing you to confirm completion of each step before updating, update multiple task statuses at once (e.g., mark one as completed and start the next), and dynamically add new todos discovered during long or complex tasks.
 
 Checklist Format:
 - Use a single-level markdown checklist (no nesting or subtasks)

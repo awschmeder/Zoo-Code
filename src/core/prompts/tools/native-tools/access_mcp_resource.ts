@@ -2,6 +2,8 @@ import type OpenAI from "openai"
 
 const ACCESS_MCP_RESOURCE_DESCRIPTION = `Request to access a resource provided by a connected MCP server. Resources represent data sources that can be used as context, such as files, API responses, or system information.
 
+When to use this vs an MCP server tool: use access_mcp_resource to read a resource a server exposes (identified by a URI) -- it fetches data for context and has no side effects. To invoke an action or operation a server offers, call that server's dynamic tool directly instead. In short: resources are read by URI; server tools are called to do something.
+
 Parameters:
 - server_name: (required) The name of the MCP server providing the resource
 - uri: (required) The URI identifying the specific resource to access

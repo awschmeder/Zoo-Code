@@ -31,7 +31,11 @@ CRITICAL REQUIREMENTS:
    - Set expected_replacements to the exact count you expect to replace
    - ALL occurrences will be replaced
 
-4. NO ESCAPING: Provide the literal text - do not escape special characters.`
+4. NO ESCAPING: Provide the literal text - do not escape special characters.
+
+OUTCOMES ON FAILURE:
+- Zero matches: if old_string (after the normalization/fallback strategies above) still matches nothing, the tool makes no change and reports the failure. Re-read the file to copy the exact current text rather than retrying the same string.
+- Count mismatch: if the number of matches does not equal expected_replacements (default 1), the tool makes no change and reports the actual count. Adjust expected_replacements to the reported count, or add context so old_string matches only the intended occurrence(s).`
 
 const edit_file = {
 	type: "function",

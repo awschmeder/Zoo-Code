@@ -2,7 +2,9 @@ import type OpenAI from "openai"
 
 const CODEBASE_SEARCH_DESCRIPTION = `Find files most relevant to the search query using semantic search. Searches based on meaning rather than exact text matches. By default searches entire workspace. Reuse the user's exact wording unless there's a clear reason not to - their phrasing often helps semantic search. Queries MUST be in English (translate if needed).
 
-**CRITICAL: For ANY exploration of code you haven't examined yet in this conversation, you MUST use this tool FIRST before any other search or file exploration tools.** This applies throughout the entire conversation, not just at the beginning. This tool uses semantic search to find relevant code based on meaning rather than just keywords, making it far more effective than regex-based search_files for understanding implementations. Even if you've already explored some code, any new area of exploration requires codebase_search first.
+When to use this tool: prefer semantic search when exploring an unfamiliar area by concept or behavior (e.g. "where is retry logic handled") and you do not yet know the exact symbol, file, or literal. Prefer search_files when you already know an exact symbol name, string literal, or regex pattern, and prefer read_file when you already know the specific path to open. These tools complement each other -- use whichever matches what you currently know.
+
+Failure modes and recovery: this tool returns results only when the workspace index is available. If indexing is disabled, still building, incomplete, or unreachable, it can return empty or low-confidence results without an explicit error. When results are empty or clearly off-target, do NOT re-run the same query -- fall back to search_files (for known text/patterns) or read_file (for known paths) instead.
 
 Parameters:
 - query: (required) The search query. Reuse the user's exact wording/question format unless there's a clear reason not to.
