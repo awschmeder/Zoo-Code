@@ -327,13 +327,17 @@ export class LiteLLMHandler extends RouterProvider implements SingleCompletionHa
 				const delta = chunk.choices[0]?.delta
 				const usage = chunk.usage as LiteLLMUsage
 
-				if (delta?.content) {
-					yield { type: "text", text: delta.content }
-				}
-
+				// Check for reasoning first and only fall back to standard text when no
+				// reasoning content is present on this delta. A single stream chunk is either
+				// reasoning or content; proxies (e.g. LiteLLM fronting Gemini) sometimes
+				// populate both fields or insert whitespace-only content separators, which
+				// would otherwise prematurely open an inline text block and break the
+				// dedicated "thinking" rendering state.
 				const reasoningText = extractReasoningFromDelta(delta)
 				if (reasoningText) {
 					yield { type: "reasoning", text: reasoningText }
+				} else if (delta?.content) {
+					yield { type: "text", text: delta.content }
 				}
 
 				// Capture Gemini thought signatures so they can be persisted on the assistant
