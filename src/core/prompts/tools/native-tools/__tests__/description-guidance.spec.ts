@@ -138,6 +138,15 @@ describe("native tool description guidance (Pt.2)", () => {
 			expect(description).toContain("do not re-run the command")
 		})
 
+		it("execute_command advises favoring built-in search and listing tools over raw shell commands", () => {
+			const description = descriptionOf(executeCommand)
+			expect(description).toContain("prefer using provided tools")
+			expect(description).toContain("codebase_search")
+			expect(description).toContain("search_files")
+			expect(description).toContain("list_files")
+			expect(description).toContain("grep, find, ls, or ack")
+		})
+
 		it("update_todo_list links full-overwrite semantics to keeping unfinished tasks", () => {
 			const description = descriptionOf(updateTodoList)
 			expect(description).toContain("full overwrite")
