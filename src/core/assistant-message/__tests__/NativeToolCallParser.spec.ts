@@ -585,12 +585,12 @@ describe("NativeToolCallParser", () => {
 			const finishEvents = NativeToolCallParser.processFinishReason("tool_calls")
 			const finalizeEvents = NativeToolCallParser.finalizeRawChunks()
 
-			const finishEnds = finishEvents.filter((e) => e.type === "tool_call_end")
-			expect(finishEnds).toHaveLength(1)
-			expect(finishEnds[0].id).toBe("call_dup")
-
-			const finalizeEnds = finalizeEvents.filter((e) => e.type === "tool_call_end")
-			expect(finalizeEnds).toHaveLength(0)
+			const allEnds = [...finishEvents, ...finalizeEvents].filter((e) => e.type === "tool_call_end")
+			expect(allEnds).toHaveLength(1)
+			expect(allEnds[0].id).toBe("call_dup")
+			// finishReason emits the single end; finalize must be a no-op for the same tracker.
+			expect(finishEvents.filter((e) => e.type === "tool_call_end")).toHaveLength(1)
+			expect(finalizeEvents.filter((e) => e.type === "tool_call_end")).toHaveLength(0)
 
 			NativeToolCallParser.clearRawChunkState()
 		})
