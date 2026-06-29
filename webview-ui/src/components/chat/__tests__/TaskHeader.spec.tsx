@@ -163,6 +163,9 @@ describe("TaskHeader", () => {
 		expect(condenseButton).toBeDefined()
 		fireEvent.click(condenseButton!)
 		expect(handleCondenseContext).toHaveBeenCalledWith("test-task-id")
+		// Clicking the condense button must not expand the header (stopPropagation guard).
+		// The expanded state renders the "chat:task.title" label, which stays absent while collapsed.
+		expect(screen.queryByText("chat:task.title")).not.toBeInTheDocument()
 	})
 
 	it("should disable the condense context button when buttonsDisabled is true", () => {
